@@ -41,9 +41,9 @@ const SIGNAL_INJECTIONS = [
 ];
 
 const MITIGATIONS = [
-  { id: 'bus_shuttles', label: 'Extra Bus Shuttles', icon: '🚌' },
-  { id: 'load_shedding', label: 'Demand Response', icon: '⚡' },
-  { id: 'crowd_diversion', label: 'Crowd Diversion', icon: '👥' },
+  { id: 'bus_shuttles', label: 'Extra Bus Shuttles', icon: '+' },
+  { id: 'load_shedding', label: 'Demand Response', icon: '~' },
+  { id: 'crowd_diversion', label: 'Crowd Diversion', icon: '>' },
 ];
 
 export interface SignalPayload {
@@ -164,20 +164,6 @@ export const CommandBar = ({
               <div className="text-[9px] text-ink/70 leading-tight">
                 {inj.context}
               </div>
-              <AnimatePresence>
-                {profession && !isProcessing && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 flex items-center justify-center bg-emerald/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <span className="text-[10px] font-bold tracking-wider uppercase text-emerald">
-                      INJECT
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </button>
           ))}
         </div>
