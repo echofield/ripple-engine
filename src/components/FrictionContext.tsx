@@ -1,6 +1,6 @@
 "use client";
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { FRICTION_REPORTS } from '@/lib/friction-data';
 
 interface FrictionContextProps {
   context: string;
@@ -11,7 +11,14 @@ interface FrictionContextProps {
 
 export const FrictionContext = ({ context, onContextChange, isExpanded, onToggle }: FrictionContextProps) => {
   const hasContext = context.trim().length > 0;
-  const previewText = context.slice(0, 150);
+  const previewText = context.slice(0, 100);
+
+  const loadPreset = (key: string) => {
+    const report = FRICTION_REPORTS[key as keyof typeof FRICTION_REPORTS];
+    if (report) {
+      onContextChange(report.data);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -47,29 +54,52 @@ export const FrictionContext = ({ context, onContextChange, isExpanded, onToggle
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="pt-4 space-y-3">
-              <div className="flex items-center gap-2 text-[8px] tracking-[0.15em] uppercase text-ink/30">
-                <span>Paste deep research output</span>
-                <div className="flex-1 h-[1px] bg-ink/5" />
+            <div className="pt-4 space-y-4">
+              {/* Quick Load */}
+              <div>
+                <div className="flex items-center gap-2 text-[8px] tracking-[0.15em] uppercase text-ink/30 mb-2">
+                  <span>Quick Load</span>
+                  <div className="flex-1 h-[1px] bg-ink/5" />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(FRICTION_REPORTS).map(([key, report]) => (
+                    <button
+                      key={key}
+                      onClick={() => loadPreset(key)}
+                      className={`
+                        px-3 py-1.5 border text-[8px] tracking-wider uppercase transition-all
+                        ${context === report.data
+                          ? 'bg-emerald text-paper border-emerald'
+                          : 'bg-transparent text-ink/50 border-ink/10 hover:border-emerald/40 hover:text-ink/80'
+                        }
+                      `}
+                    >
+                      <div className="font-bold">{report.label}</div>
+                      <div className="text-[7px] opacity-70 mt-0.5">{report.summary}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <textarea
-                value={context}
-                onChange={(e) => onContextChange(e.target.value)}
-                placeholder={`Paste your friction report here...
+              {/* Manual Input */}
+              <div>
+                <div className="flex items-center gap-2 text-[8px] tracking-[0.15em] uppercase text-ink/30 mb-2">
+                  <span>Or paste custom data</span>
+                  <div className="flex-1 h-[1px] bg-ink/5" />
+                </div>
 
-Example:
-- RER B: Closed March 14-15 for maintenance (Gare du Nord - CDG)
-- France vs England Rugby: Stade de France, 21:00 March 15, 80,000 attendees
-- Weather: Rain expected 14:00-18:00, 12°C
-- Fashion Week teardown: Le Marais blocked trucks until March 16`}
-                className="w-full h-32 bg-ink/[0.02] border border-ink/10 p-3 text-xs text-ink/70 placeholder:text-ink/20 resize-none focus:outline-none focus:border-emerald/30 transition-colors"
-              />
+                <textarea
+                  value={context}
+                  onChange={(e) => onContextChange(e.target.value)}
+                  placeholder="Paste friction report from Gemini Deep Research..."
+                  className="w-full h-28 bg-ink/[0.02] border border-ink/10 p-3 text-[10px] text-ink/70 placeholder:text-ink/20 resize-none focus:outline-none focus:border-emerald/30 transition-colors font-mono"
+                />
+              </div>
 
               {hasContext && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-2 border-t border-ink/5">
                   <span className="text-[8px] text-emerald/60 uppercase tracking-wider">
-                    {context.split('\n').filter(l => l.trim()).length} friction sources detected
+                    {context.split('\n').filter(l => l.trim()).length} lines loaded
                   </span>
                   <button
                     onClick={() => onContextChange('')}
@@ -85,7 +115,7 @@ Example:
       </AnimatePresence>
 
       {!isExpanded && hasContext && (
-        <div className="mt-2 text-[9px] text-ink/30 truncate">
+        <div className="mt-2 text-[9px] text-ink/30 truncate font-mono">
           {previewText}...
         </div>
       )}

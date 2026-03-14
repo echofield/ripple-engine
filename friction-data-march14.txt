@@ -1,0 +1,100 @@
+PARIS URBAN FRICTION REPORT - March 14-15, 2026 (72-Hour Horizon)
+
+═══════════════════════════════════════════════════════════════
+CRITICAL EVENTS
+═══════════════════════════════════════════════════════════════
+
+FRANCE vs ENGLAND RUGBY - Stade de France
+- Date: Saturday March 14, 2026
+- Kickoff: 21:10 CET
+- Crowd: 80,000+ spectators
+- Stadium doors: 18:00
+- Match end: ~22:50-23:00
+- Egress crisis: 22:50 - 01:30 (MAXIMUM FRICTION)
+
+PARIS FASHION WEEK TEARDOWN - Le Marais
+- Duration: March 13-16
+- Zones: 3rd & 4th arrondissements
+- Streets blocked: Rue de Turenne, Rue Chapon, Rue des Tournelles, Rue de Braque
+- Heavy trucks & LCVs blocking narrow streets
+- Active hours: 08:00-19:00 daily
+
+═══════════════════════════════════════════════════════════════
+TRANSIT CLOSURES (RATP/SNCF)
+═══════════════════════════════════════════════════════════════
+
+RER C - COMPLETE CLOSURE:
+- Invalides ↔ Juvisy: Closed until Sun 17:00
+- Invalides ↔ Massy-Palaiseau: Closed all weekend
+- Replacement buses saturating 7th arrondissement
+
+RER D - SUSPENDED:
+- Creil ↔ Stade de France Saint-Denis: Closed until March 14
+- Northern suburbs cut off from stadium
+
+RER B - FRAGILE:
+- Weeknight closures from 22:45 (Châtelet ↔ CDG)
+- Special extended service for rugby match
+- Last train to CDG: 00:20
+- EXTREME OVERCROWDING expected post-match
+
+METRO LINE 14 - FULLY OPERATIONAL:
+- Primary recommended route to/from Stade de France
+- Automated high-capacity - use Mairie de Saint-Ouen station
+- Best extraction vector post-match
+
+═══════════════════════════════════════════════════════════════
+WEATHER FORECAST - 10th Arrondissement
+═══════════════════════════════════════════════════════════════
+
+- Temperature: ~10°C (50°F)
+- Conditions: Intermittent rain showers
+- Impact: Pedestrians accelerating, seeking cover
+- Gare du Nord/Est forecourts become hostile
+- Slick cobblestones - reduced bike/scooter speeds
+
+═══════════════════════════════════════════════════════════════
+FRICTION POINTS (I→A INTERRUPTION)
+═══════════════════════════════════════════════════════════════
+
+ALPHA: Saint-Denis Extraction Void
+- When: Sat 22:30-01:30
+- Where: Ave du Président Wilson, RER B La Plaine, Metro 13 Porte de Paris
+- Status: TOTAL GRIDLOCK - 80K egress + suspended RER D
+- Action: Avoid stadium 1km radius. Stage at Front Populaire or Line 14
+
+BETA: Invalides Decoupling Zone
+- When: Sat-Sun until 17:00
+- Where: Esplanade des Invalides, Quai d'Orsay
+- Status: RER C dead, replacement buses blocking all lanes
+- Action: Approach from Right Bank only
+
+GAMMA: Le Marais Logistics Embolism
+- When: 08:00-19:00 daily through March 16
+- Where: Rue de Turenne, Rue Chapon, Rue des Tournelles
+- Status: Fashion Week trucks blocking streets, LTZ active
+- Action: Use boundary boulevards (Beaumarchais, Sébastopol)
+
+DELTA: 10th Arr. Weather Constriction
+- When: During rain events
+- Where: Gare du Nord, Gare de l'Est forecourts
+- Status: Pedestrians flooding station exits, zero buffer
+- Action: Curbside staging only, avoid forecourt entry
+
+═══════════════════════════════════════════════════════════════
+SURGE DEMAND ZONES (VTC/DELIVERY)
+═══════════════════════════════════════════════════════════════
+
+HIGH OPPORTUNITY:
+- Metro Line 14 exits (Saint-Ouen) - Post-match 23:00-01:00
+- Front Populaire (Line 12) - Pedestrians walking clear of stadium
+- Invalides perimeter (Right Bank approach) - RER C refugees
+- Le Marais boundaries (Beaumarchais/Sébastopol) - Terrace customers
+
+DEAD ZONES:
+- Stadium precinct (Ave du Président Wilson) - Zero velocity
+- Deep Le Marais (Rue de Turenne) - Truck blockades
+- Gare du Nord forecourt during rain - Chaos
+- 7th Arr interior (replacement bus staging)
+
+═══════════════════════════════════════════════════════════════
