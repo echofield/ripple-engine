@@ -3,13 +3,15 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapEngine } from '@/components/MapEngine';
 import { SearchHUD } from '@/components/SearchHUD';
-import { ProfessionSelector } from '@/components/ProfessionSelector';
 import type { IRATrace, RippleNode, SimulationResponse } from '@/types';
 
 export default function Home() {
   const [profession, setProfession] = useState<string | null>(null);
+  const [frictionContext, setFrictionContext] = useState<string>('');
   const [trace, setTrace] = useState<IRATrace | null>(null);
   const [ripples, setRipples] = useState<RippleNode[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
+  const [mode, setMode] = useState<string>('predictive');
   const [hudVisible, setHudVisible] = useState(true);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,20 +29,27 @@ export default function Home() {
       const res = await fetch('/api/simulate', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signal, profession }),
+        body: JSON.stringify({
+          signal,
+          profession,
+          frictionContext: frictionContext.trim() || undefined
+        }),
       });
 
       if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
+        const errData = await res.json();
+        throw new Error(errData.error || `Server error: ${res.status}`);
       }
 
-      const data: SimulationResponse = await res.json();
+      const data = await res.json();
 
       setTimeout(() => {
         setTrace(data.ira_trace);
-        setRipples(data.ripples);
+        setRipples(data.ripples || []);
+        setSources(data.sources || []);
+        setMode(data._mode || 'predictive');
         setIsCalculating(false);
-      }, 1500);
+      }, 1200);
 
     } catch (err) {
       console.error('Simulation failed:', err);
@@ -53,6 +62,7 @@ export default function Home() {
   const resetEngine = () => {
     setTrace(null);
     setRipples([]);
+    setSources([]);
     setHudVisible(true);
     setError(null);
     setCurrentSignal('');
@@ -66,11 +76,16 @@ export default function Home() {
       <div className="fixed top-8 left-8 z-[60] flex items-center gap-4 pointer-events-none">
         <div className="w-10 h-[1px] bg-emerald/40" />
         <div className="text-[10px] tracking-[0.4em] uppercase font-bold text-ink opacity-40">
-          Ripple Causal Kernel // 0.4.0
+          Ripple Causal Kernel // 0.5.0
         </div>
+        {frictionContext && (
+          <div className="px-2 py-0.5 bg-emerald/10 border border-emerald/20 text-[8px] tracking-wider uppercase text-emerald">
+            Grounded
+          </div>
+        )}
       </div>
 
-      {/* Active Profession Badge */}
+      {/* Active Lens Badge */}
       <AnimatePresence>
         {profession && !hudVisible && (
           <motion.div
@@ -90,10 +105,10 @@ export default function Home() {
       {/* Footer */}
       <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end gap-2 pointer-events-none">
         <div className="text-[9px] tracking-micro uppercase font-bold text-ink/30">
-          Coord Source: Mapbox-GL
+          {mode === 'grounded' ? 'Mode: Grounded Data' : 'Mode: Predictive'}
         </div>
         <div className="text-[9px] tracking-micro uppercase font-bold text-ink/30">
-          Engine: Gemini-IRA-Context
+          Engine: Gemini-IRA
         </div>
         <div className="w-24 h-[1px] bg-ink/10 mt-2" />
       </div>
@@ -130,6 +145,8 @@ export default function Home() {
             onSimulate={triggerSimulation}
             profession={profession}
             onProfessionChange={setProfession}
+            frictionContext={frictionContext}
+            onFrictionContextChange={setFrictionContext}
           />
         )}
       </AnimatePresence>
@@ -145,7 +162,7 @@ export default function Home() {
             </div>
             <div className="text-center">
               <div className="text-[10px] tracking-[0.3em] uppercase font-bold text-emerald animate-pulse mb-2">
-                Calculating Ripples
+                {frictionContext ? 'Grounding Analysis' : 'Calculating Ripples'}
               </div>
               <div className="text-[8px] tracking-[0.2em] uppercase text-ink/30">
                 {profession?.replace('_', ' ')} Perspective
@@ -165,15 +182,22 @@ export default function Home() {
             transition={{ type: "spring", damping: 25, stiffness: 120 }}
             className="fixed inset-y-0 left-0 z-50 flex h-screen w-[440px] pointer-events-none"
           >
-            <div className="w-full h-full p-10 flex flex-col bg-paper/80 backdrop-blur-2xl border-r border-ink/5 pointer-events-auto relative shadow-2xl">
+            <div className="w-full h-full p-10 flex flex-col bg-paper/80 backdrop-blur-2xl border-r border-ink/5 pointer-events-auto relative shadow-2xl overflow-hidden">
 
               {/* Decorative */}
               <div className="absolute top-0 right-0 p-6 opacity-[0.03]">
                 <div className="text-[60px] font-bold tracking-tight">IRA</div>
               </div>
 
+              {/* Mode Badge */}
+              {mode === 'grounded' && (
+                <div className="absolute top-6 right-6 px-2 py-1 bg-emerald/10 border border-emerald/20">
+                  <span className="text-[7px] tracking-[0.2em] uppercase text-emerald font-bold">Grounded</span>
+                </div>
+              )}
+
               {/* Header */}
-              <div className="flex flex-col gap-1 mb-8">
+              <div className="flex flex-col gap-1 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-emerald rounded-full animate-pulse" />
                   <h1 className="font-bold text-xs tracking-[0.3em] uppercase text-emerald">
@@ -181,19 +205,19 @@ export default function Home() {
                   </h1>
                 </div>
                 <p className="text-[9px] text-ink/30 uppercase tracking-widest ml-5">
-                  {profession?.replace('_', ' ')} Perspective
+                  {profession?.replace('_', ' ')} • {mode === 'grounded' ? 'Real Data' : 'Predictive'}
                 </p>
               </div>
 
               {/* Signal Echo */}
-              <div className="mb-8 p-4 bg-ink/[0.02] border border-ink/5">
+              <div className="mb-6 p-4 bg-ink/[0.02] border border-ink/5">
                 <span className="text-[8px] tracking-[0.2em] uppercase text-ink/30 block mb-2">Signal</span>
                 <p className="text-sm text-ink/70 italic">&ldquo;{currentSignal}&rdquo;</p>
               </div>
 
               {/* Reset */}
               <button
-                className="group flex items-center gap-3 text-[10px] tracking-micro uppercase text-ink/40 hover:text-emerald transition-colors font-bold mb-8"
+                className="group flex items-center gap-3 text-[10px] tracking-micro uppercase text-ink/40 hover:text-emerald transition-colors font-bold mb-6"
                 onClick={resetEngine}
               >
                 <span className="w-4 h-[1px] bg-ink/20 group-hover:bg-emerald group-hover:w-6 transition-all" />
@@ -201,46 +225,60 @@ export default function Home() {
               </button>
 
               {/* IRA Trace */}
-              <div className="flex-1 space-y-8 overflow-y-auto pr-2">
+              <div className="flex-1 space-y-6 overflow-y-auto pr-2">
                 <section>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-2">
                     <span className="w-5 h-5 flex items-center justify-center border border-ink/10 text-[8px] font-black text-ink/30">I</span>
                     <h2 className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">Intent</h2>
                   </div>
-                  <div className="ml-8 p-4 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
+                  <div className="ml-8 p-3 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
                     {trace.intent}
                   </div>
                 </section>
 
                 <section>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-2">
                     <span className="w-5 h-5 flex items-center justify-center border border-ink/10 text-[8px] font-black text-ink/30">A</span>
                     <h2 className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">Action</h2>
                   </div>
-                  <div className="ml-8 p-4 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
+                  <div className="ml-8 p-3 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
                     {trace.action}
                   </div>
                 </section>
 
                 <section>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-2">
                     <span className="w-5 h-5 flex items-center justify-center border border-emerald/20 bg-emerald/5 text-[8px] font-black text-emerald">R</span>
                     <h2 className="text-[10px] uppercase tracking-[0.2em] text-emerald font-bold">Ramification</h2>
                   </div>
-                  <div className="ml-8 p-4 bg-emerald/[0.03] border-l-2 border-emerald/30 text-xs leading-relaxed text-emerald/90 font-medium">
+                  <div className="ml-8 p-3 bg-emerald/[0.03] border-l-2 border-emerald/30 text-xs leading-relaxed text-emerald/90 font-medium">
                     {trace.ramification}
                   </div>
                 </section>
+
+                {/* Sources */}
+                {sources.length > 0 && (
+                  <section className="pt-4 border-t border-ink/5">
+                    <div className="text-[8px] tracking-[0.2em] uppercase text-ink/30 mb-2">Data Sources</div>
+                    <div className="flex flex-wrap gap-1">
+                      {sources.map((src, i) => (
+                        <span key={i} className="text-[8px] px-2 py-0.5 bg-ink/[0.03] border border-ink/5 text-ink/40">
+                          {src}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </div>
 
               {/* Footer */}
-              <div className="mt-auto pt-6 border-t border-ink/5 flex items-center justify-between">
+              <div className="mt-auto pt-4 border-t border-ink/5 flex items-center justify-between">
                 <div className="text-[8px] uppercase tracking-widest opacity-20 font-bold">
-                  Confidence: 0.{Math.floor(Math.random() * 100 + 900)}
+                  {ripples.length} Ripples Mapped
                 </div>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className={`w-1 h-1 ${i < 5 ? 'bg-emerald' : 'bg-ink/10'}`} />
+                    <div key={i} className={`w-1 h-1 ${i <= Math.min(ripples.length, 5) ? 'bg-emerald' : 'bg-ink/10'}`} />
                   ))}
                 </div>
               </div>
