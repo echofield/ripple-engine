@@ -183,14 +183,14 @@ export const CommandBar = ({
       <div className="mt-3 bg-paper/80 border border-ink/10 p-3">
         <div className="flex items-center justify-between mb-2">
           <div className="text-[8px] tracking-[0.15em] uppercase text-ink/40 flex items-center gap-2">
-            <span className="text-amber-500">⚡</span>
+            <span className="text-amber-500 font-mono">[+]</span>
             <span>Counterfactual</span>
-            <span className="text-ink/20">|</span>
+            <span className="text-ink/20">//</span>
             <span className="text-ink/30">What if we deploy...</span>
           </div>
           {activeMitigation && (
-            <span className="text-[7px] text-emerald uppercase tracking-wider font-bold">
-              Active
+            <span className="text-[7px] text-emerald uppercase tracking-wider font-bold animate-pulse">
+              Intervention Active
             </span>
           )}
         </div>
