@@ -237,22 +237,24 @@ function getDemoResponse(signal: string, profession: string, hasContext: boolean
 
 export async function POST(request: NextRequest) {
   try {
-    const { signal, profession, frictionContext, mitigation } = await request.json();
+    const { signal_type, location, context, profession_lens, frictionContext, mitigation } = await request.json();
 
-    if (!signal || typeof signal !== 'string') {
-      return NextResponse.json({ error: 'Invalid signal input' }, { status: 400 });
+    // Validate structured payload
+    if (!signal_type || !location || !profession_lens) {
+      return NextResponse.json({ error: 'Invalid signal payload' }, { status: 400 });
     }
 
-    if (!profession || !PROFESSION_CONTEXT[profession]) {
-      return NextResponse.json({ error: 'Invalid profession selected' }, { status: 400 });
+    if (!PROFESSION_CONTEXT[profession_lens]) {
+      return NextResponse.json({ error: 'Invalid profession lens' }, { status: 400 });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     const hasContext = !!frictionContext?.trim();
+    const displaySignal = `${signal_type} @ ${location} | ${context}`;
 
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
       // Return demo response if no API key
-      return NextResponse.json(getDemoResponse(signal, profession, hasContext, mitigation));
+      return NextResponse.json(getDemoResponse(displaySignal, profession_lens, hasContext, mitigation));
     }
 
     try {
@@ -261,41 +263,107 @@ export async function POST(request: NextRequest) {
 
       const truncatedContext = frictionContext ? truncateFrictionData(frictionContext) : '';
 
-      const prompt = `You are a Paris urban dynamics engine. Today: March 14, 2026.
-${PROFESSION_CONTEXT[profession]}
+      // DYNAMIC CAUSAL KERNEL PROMPT
+      const systemPrompt = `You are the RIPPLE CAUSAL KERNEL operating in Paris, March 14, 2026.
+
+OPERATOR LENS: ${profession_lens}
+${PROFESSION_CONTEXT[profession_lens]}
+
+EVENT TRIGGER: ${signal_type} at ${location}
+CURRENT CONTEXT: ${context}
+${mitigation ? `ACTIVE MITIGATION: ${mitigation}` : ''}
 ${truncatedContext ? `FRICTION DATA:\n${truncatedContext}` : ''}
 
-Analyze this signal for a ${profession.replace('_', ' ')}: "${signal}"
+MISSION: Generate a dynamic, highly specific predictive analysis of the causal ramifications.
+Do NOT use generic answers. Calculate specific operational frictions, financial impacts, or displacement metrics relevant ONLY to a ${profession_lens}.
 
-Return JSON with these exact fields:
-- signal: string
-- field_state: {friction_index: 0-1, density_pressure: "low|medium|high|critical", summary: string}
-- flow_dynamics: {primary_flow: string, secondary_flow: string, choke_points: string[]}
-- causal_chain: [{node: string, type: "trigger|amplifier|outcome", value: string, leads_to: string|null}]
-- sovereign_decision: {action: "ABANDON|STAGE|RELOCATE|HOLD", target: string, logic: string, confidence: 0-1}
-- ripples: [{id: string, lat: 48.82-48.90, lng: 2.25-2.42, profession: string, label: "SURGE|DEAD_ZONE|HOTSPOT|AVOID|OPPORTUNITY", intensity: 0-1, impact: "STAY|MOVE|WAIT", why: string}]
-- optimal_position: {lat: number, lng: number, reason: string}
-- macro_strain: {index: 0-1, primary_factor: string}
-- sources: string[]`;
+You must think through the causal chain:
+1. INTENT: What human behavioral shift does this signal trigger?
+2. ACTION: What physical world consequence follows?
+3. RAMIFICATION: What is the specific operational impact for ${profession_lens}?
+
+OUTPUT SCHEMA (strict JSON):
+{
+  "signal": "${displaySignal}",
+  "intent": "The human behavioral shift this signal triggers",
+  "action": "The physical world consequence",
+  "ramification": "Specific operational impact with projected metric (e.g., '+18% cost', '45 min delay', '-23% utilization')",
+  "field_state": {
+    "friction_index": 0.0-1.0,
+    "density_pressure": "low|medium|high|critical",
+    "summary": "One-line operational summary with specific numbers"
+  },
+  "flow_dynamics": {
+    "primary_flow": "Main population/resource movement pattern",
+    "secondary_flow": "Counter-flow or secondary effect",
+    "choke_points": ["Specific Paris locations that will bottleneck"]
+  },
+  "causal_chain": [
+    {"node": "TRIGGER_NAME", "type": "trigger", "value": "Specific metric", "leads_to": "NEXT_NODE"},
+    {"node": "AMPLIFIER_NAME", "type": "amplifier", "value": "How it compounds", "leads_to": "OUTCOME_NODE"},
+    {"node": "OUTCOME_NAME", "type": "outcome", "value": "Final impact with number", "leads_to": null}
+  ],
+  "sovereign_decision": {
+    "action": "STAGE|RELOCATE|HOLD|SHED|DIVERT|ABANDON",
+    "target": "Specific location or resource allocation command",
+    "logic": "Why this is optimal for ${profession_lens} with probability/confidence reasoning",
+    "confidence": 0.0-1.0
+  },
+  "ripples": [
+    {"id": "r1", "lat": 48.XX, "lng": 2.XX, "label": "SURGE|DEAD_ZONE|HOTSPOT|AVOID|OPPORTUNITY|CRITICAL|BUFFER", "intensity": 0.0-1.0, "why": "Specific reason for this zone"}
+  ],
+  "optimal_position": {
+    "lat": 48.XX,
+    "lng": 2.XX,
+    "reason": "Why this is the optimal position for ${profession_lens}"
+  },
+  "macro_strain": {
+    "index": 0.0-1.0,
+    "primary_factor": "Main systemic stress factor"
+  }
+}
+
+Generate 3-4 ripple points in Paris. Use real Paris coordinates (lat: 48.82-48.92, lng: 2.22-2.42).
+Be specific to the ${profession_lens} perspective. Every number should feel calculated, not generic.`;
 
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
         generationConfig: { responseMimeType: 'application/json' },
       });
 
       const responseText = result.response.text();
       const data = JSON.parse(responseText);
 
+      // Apply mitigation effects if present
+      let finalData = data;
+      if (mitigation && MITIGATION_EFFECTS[mitigation]) {
+        const effect = MITIGATION_EFFECTS[mitigation];
+        finalData = {
+          ...data,
+          field_state: {
+            ...data.field_state,
+            friction_index: Math.max(0.2, (data.field_state?.friction_index || 0.7) - effect.frictionReduction),
+          },
+          sovereign_decision: {
+            ...data.sovereign_decision,
+            confidence: Math.min(0.98, (data.sovereign_decision?.confidence || 0.8) + effect.confidenceBoost),
+            logic: `${data.sovereign_decision?.logic || ''} [Mitigation active: ${effect.label} reduces impact by ${Math.round(effect.frictionReduction * 100)}%]`
+          }
+        };
+      }
+
       return NextResponse.json({
-        ...data,
+        ...finalData,
+        ripples: (finalData.ripples || []).map((r: any) => ({ ...r, profession: profession_lens })),
+        sources: ["Real-time Transit Feed", "Weather API", "Crowd Analytics", "Grid Telemetry", "RATP Live"],
         _mode: hasContext ? 'grounded' : 'predictive',
+        _mitigation: mitigation || null,
         _timestamp: new Date().toISOString()
       });
 
     } catch (aiError: any) {
       console.error('AI error, using demo fallback:', aiError.message);
-      // Return demo response on AI failure
-      return NextResponse.json(getDemoResponse(signal, profession, hasContext, mitigation));
+      return NextResponse.json(getDemoResponse(displaySignal, profession_lens, hasContext, mitigation));
     }
 
   } catch (error: any) {

@@ -13,24 +13,30 @@ const PROFESSIONS = [
 const SIGNAL_INJECTIONS = [
   {
     id: 'INJECT_01',
+    signal_type: 'CATASTROPHIC_TRANSIT_FAILURE',
+    location: 'Gare du Nord',
+    context: 'Heavy Rain + Line 4 Suspension',
     time: '18:30',
-    space: 'GARE DU NORD',
-    signal: 'Flash Flood + Line 4 Suspension',
-    color: 'blue'
+    color: 'blue',
+    label: 'Transit Cascade'
   },
   {
     id: 'INJECT_02',
+    signal_type: 'UNPLANNED_MASS_EGRESS',
+    location: 'Stade de France',
+    context: 'Post-Match + Protest Convergence',
     time: '21:00',
-    space: 'STADE DE FRANCE',
-    signal: 'Match Egress + Unplanned Protest',
-    color: 'amber'
+    color: 'amber',
+    label: 'Mass Egress'
   },
   {
     id: 'INJECT_03',
+    signal_type: 'ENERGY_GRID_ANOMALY',
+    location: 'La Défense',
+    context: 'Rolling Blackout + Peak Load',
     time: '08:00',
-    space: 'LA DEFENSE',
-    signal: 'Rolling Blackout',
-    color: 'red'
+    color: 'red',
+    label: 'Grid Failure'
   },
 ];
 
@@ -40,10 +46,18 @@ const MITIGATIONS = [
   { id: 'crowd_diversion', label: 'Crowd Diversion', icon: '👥' },
 ];
 
+export interface SignalPayload {
+  signal_type: string;
+  location: string;
+  context: string;
+  profession_lens: string;
+  mitigation?: string;
+}
+
 interface CommandBarProps {
   profession: string | null;
   onProfessionChange: (p: string) => void;
-  onSimulate: (signal: string, mitigation?: string) => void;
+  onSimulate: (payload: SignalPayload) => void;
   isProcessing: boolean;
   hasData: boolean;
 }
@@ -59,8 +73,14 @@ export const CommandBar = ({
 
   const handleInject = (injection: typeof SIGNAL_INJECTIONS[0]) => {
     if (profession && !isProcessing) {
-      const fullSignal = `TIME: ${injection.time} | SPACE: ${injection.space} | ${injection.signal}`;
-      onSimulate(fullSignal, activeMitigation || undefined);
+      const payload: SignalPayload = {
+        signal_type: injection.signal_type,
+        location: injection.location,
+        context: injection.context,
+        profession_lens: profession,
+        mitigation: activeMitigation || undefined
+      };
+      onSimulate(payload);
     }
   };
 
@@ -124,20 +144,25 @@ export const CommandBar = ({
             >
               <div className="flex items-center gap-2 mb-2">
                 <div className={`
-                  w-2 h-2 rounded-full
+                  w-2 h-2 rounded-full animate-pulse
                   ${inj.color === 'blue' ? 'bg-blue-500' : ''}
                   ${inj.color === 'amber' ? 'bg-amber-500' : ''}
                   ${inj.color === 'red' ? 'bg-red-500' : ''}
                 `} />
-                <span className="text-[7px] tracking-wider uppercase text-ink/40 font-mono">
-                  {inj.id}
+                <span className={`
+                  text-[8px] tracking-wider uppercase font-bold
+                  ${inj.color === 'blue' ? 'text-blue-500' : ''}
+                  ${inj.color === 'amber' ? 'text-amber-500' : ''}
+                  ${inj.color === 'red' ? 'text-red-500' : ''}
+                `}>
+                  {inj.label}
                 </span>
               </div>
-              <div className="text-[8px] font-mono text-ink/60 mb-1">
-                <span className="text-ink/30">T:</span> {inj.time} <span className="text-ink/30 ml-1">@</span> {inj.space}
+              <div className="text-[8px] font-mono text-ink/50 mb-1">
+                <span className="text-ink/30">T:</span> {inj.time} <span className="text-ink/30 ml-1">@</span> {inj.location}
               </div>
-              <div className="text-[9px] font-bold text-ink/80 leading-tight">
-                {inj.signal}
+              <div className="text-[9px] text-ink/70 leading-tight">
+                {inj.context}
               </div>
               <AnimatePresence>
                 {profession && !isProcessing && (

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapEngine } from '@/components/MapEngine';
-import { CommandBar } from '@/components/CommandBar';
+import { CommandBar, SignalPayload } from '@/components/CommandBar';
 import { DataDrawer } from '@/components/DataDrawer';
 import { SovereignDecision } from '@/components/SovereignDecision';
 import { FlowDynamics } from '@/components/FlowDynamics';
@@ -64,14 +64,20 @@ export default function Home() {
   const [sovereignDecision, setSovereignDecision] = useState<SovereignDecisionData | null>(null);
   const [optimalPosition, setOptimalPosition] = useState<OptimalPosition | null>(null);
 
+  // IRA Framework
+  const [iraIntent, setIraIntent] = useState<string | null>(null);
+  const [iraAction, setIraAction] = useState<string | null>(null);
+  const [iraRamification, setIraRamification] = useState<string | null>(null);
+
   const hasResults = sovereignDecision || causalChain.length > 0;
   const hasData = frictionContext.trim().length > 0;
 
-  const triggerSimulation = async (signal: string, mitigation?: string) => {
-    if (!signal.trim() || !profession) return;
+  const triggerSimulation = async (payload: SignalPayload) => {
+    if (!payload.signal_type || !profession) return;
 
-    setCurrentSignal(signal);
-    setCurrentMitigation(mitigation || null);
+    const displaySignal = `${payload.signal_type} @ ${payload.location} | ${payload.context}`;
+    setCurrentSignal(displaySignal);
+    setCurrentMitigation(payload.mitigation || null);
     setIsCalculating(true);
 
     try {
@@ -79,10 +85,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          signal,
-          profession,
+          signal_type: payload.signal_type,
+          location: payload.location,
+          context: payload.context,
+          profession_lens: payload.profession_lens,
           frictionContext: frictionContext.trim() || undefined,
-          mitigation: mitigation || undefined
+          mitigation: payload.mitigation || undefined
         }),
       });
 
@@ -97,6 +105,10 @@ export default function Home() {
         setMacroStrain(data.macro_strain || null);
         setSovereignDecision(data.sovereign_decision || null);
         setOptimalPosition(data.optimal_position || null);
+        // IRA Framework
+        setIraIntent(data.intent || null);
+        setIraAction(data.action || null);
+        setIraRamification(data.ramification || null);
         setIsCalculating(false);
       }, 1500);
 
@@ -116,6 +128,9 @@ export default function Home() {
     setMacroStrain(null);
     setSovereignDecision(null);
     setOptimalPosition(null);
+    setIraIntent(null);
+    setIraAction(null);
+    setIraRamification(null);
   };
 
   return (
@@ -265,6 +280,37 @@ export default function Home() {
               {/* Decision Content */}
               <div className="p-5">
                 <SovereignDecision decision={sovereignDecision} profession={profession || ''} />
+
+                {/* IRA Framework Display */}
+                {(iraIntent || iraAction || iraRamification) && (
+                  <div className="mt-4 p-3 bg-ink/[0.02] border border-ink/10">
+                    <div className="text-[7px] text-ink/30 uppercase tracking-[0.2em] mb-3 font-bold">
+                      Causal Logic Chain
+                    </div>
+                    <div className="space-y-2">
+                      {iraIntent && (
+                        <div className="flex items-start gap-2">
+                          <div className="w-16 text-[8px] uppercase tracking-wider text-blue-500 font-bold shrink-0">Intent</div>
+                          <div className="text-[10px] text-ink/70">{iraIntent}</div>
+                        </div>
+                      )}
+                      {iraIntent && iraAction && <div className="text-ink/20 text-[10px] pl-6">↓</div>}
+                      {iraAction && (
+                        <div className="flex items-start gap-2">
+                          <div className="w-16 text-[8px] uppercase tracking-wider text-amber-500 font-bold shrink-0">Action</div>
+                          <div className="text-[10px] text-ink/70">{iraAction}</div>
+                        </div>
+                      )}
+                      {iraAction && iraRamification && <div className="text-ink/20 text-[10px] pl-6">↓</div>}
+                      {iraRamification && (
+                        <div className="flex items-start gap-2">
+                          <div className="w-16 text-[8px] uppercase tracking-wider text-emerald font-bold shrink-0">Impact</div>
+                          <div className="text-[10px] text-ink/80 font-medium">{iraRamification}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Signal Echo */}
                 <div className="mt-4 p-2 bg-ink/[0.02] border-l-2 border-ink/10">
