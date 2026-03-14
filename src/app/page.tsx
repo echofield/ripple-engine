@@ -2,12 +2,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapEngine } from '@/components/MapEngine';
-import { SearchHUD } from '@/components/SearchHUD';
-import { TelemetryStream } from '@/components/TelemetryStream';
-import { CausalAncestry } from '@/components/CausalAncestry';
-import { FlowDynamics } from '@/components/FlowDynamics';
+import { CommandBar } from '@/components/CommandBar';
+import { DataDrawer } from '@/components/DataDrawer';
 import { SovereignDecision } from '@/components/SovereignDecision';
-import { MacroTicker } from '@/components/MacroTicker';
+import { FlowDynamics } from '@/components/FlowDynamics';
+import { CausalAncestry } from '@/components/CausalAncestry';
 import type { RippleNode } from '@/types';
 
 interface CausalNode {
@@ -51,14 +50,12 @@ export default function Home() {
   const [profession, setProfession] = useState<string | null>(null);
   const [frictionContext, setFrictionContext] = useState<string>('');
   const [ripples, setRipples] = useState<RippleNode[]>([]);
-  const [sources, setSources] = useState<string[]>([]);
   const [mode, setMode] = useState<string>('predictive');
-  const [hudVisible, setHudVisible] = useState(true);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [currentSignal, setCurrentSignal] = useState<string>('');
+  const [showDataDrawer, setShowDataDrawer] = useState(false);
 
-  // Causal Pipeline State
+  // Results
   const [causalChain, setCausalChain] = useState<CausalNode[]>([]);
   const [flowDynamics, setFlowDynamics] = useState<FlowData | null>(null);
   const [fieldState, setFieldState] = useState<FieldState | null>(null);
@@ -66,13 +63,14 @@ export default function Home() {
   const [sovereignDecision, setSovereignDecision] = useState<SovereignDecisionData | null>(null);
   const [optimalPosition, setOptimalPosition] = useState<OptimalPosition | null>(null);
 
+  const hasResults = sovereignDecision || causalChain.length > 0;
+  const hasData = frictionContext.trim().length > 0;
+
   const triggerSimulation = async (signal: string) => {
     if (!signal.trim() || !profession) return;
 
     setCurrentSignal(signal);
     setIsCalculating(true);
-    setHudVisible(false);
-    setError(null);
 
     try {
       const res = await fetch('/api/simulate', {
@@ -85,16 +83,10 @@ export default function Home() {
         }),
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || `Server error: ${res.status}`);
-      }
-
       const data = await res.json();
 
       setTimeout(() => {
         setRipples(data.ripples || []);
-        setSources(data.sources || []);
         setMode(data._mode || 'predictive');
         setCausalChain(data.causal_chain || []);
         setFlowDynamics(data.flow_dynamics || null);
@@ -107,17 +99,12 @@ export default function Home() {
 
     } catch (err) {
       console.error('Simulation failed:', err);
-      setError(err instanceof Error ? err.message : 'Connection failed');
-      setHudVisible(true);
       setIsCalculating(false);
     }
   };
 
   const resetEngine = () => {
     setRipples([]);
-    setSources([]);
-    setHudVisible(true);
-    setError(null);
     setCurrentSignal('');
     setCausalChain([]);
     setFlowDynamics(null);
@@ -127,278 +114,150 @@ export default function Home() {
     setOptimalPosition(null);
   };
 
-  const hasResults = sovereignDecision || causalChain.length > 0;
-
   return (
-    <main className="relative min-h-screen bg-paper text-ink overflow-hidden selection:bg-emerald/20">
+    <main className="relative w-screen h-screen bg-paper overflow-hidden">
+      {/* DOT GRID BACKGROUND */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #1a1a1a 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }}
+      />
+
+      {/* REGISTRATION MARKS - L Brackets */}
+      <div className="absolute top-4 left-4 w-8 h-8 border-t-[1px] border-l-[1px] border-ink/[0.08]" />
+      <div className="absolute top-4 right-4 w-8 h-8 border-t-[1px] border-r-[1px] border-ink/[0.08]" />
+      <div className="absolute bottom-4 left-4 w-8 h-8 border-b-[1px] border-l-[1px] border-ink/[0.08]" />
+      <div className="absolute bottom-4 right-4 w-8 h-8 border-b-[1px] border-r-[1px] border-ink/[0.08]" />
+
+      {/* 1. THE CANVAS - Map is the hero */}
       <MapEngine ripples={ripples} />
 
-      {/* Header - MacroTicker */}
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-paper/80 backdrop-blur-sm border-b border-ink/5">
-        <div className="flex items-center justify-between px-8 py-4">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-[1px] bg-emerald/40" />
-            <div className="text-[10px] tracking-[0.3em] uppercase font-bold text-ink/40">
-              Ripple Engine
-            </div>
-            <div className="text-[8px] tracking-wider text-ink/20 font-mono">v1.0</div>
-            {frictionContext && (
-              <div className="px-2 py-0.5 bg-emerald/10 border border-emerald/20 text-[7px] tracking-wider uppercase text-emerald font-bold">
-                Digital Twin Active
-              </div>
-            )}
-          </div>
-
-          <MacroTicker
-            macroStrain={macroStrain || undefined}
-            fieldState={fieldState || undefined}
-            isActive={hasResults && !hudVisible}
-          />
+      {/* 2. TOP HUD - Minimal */}
+      <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-6 pointer-events-none">
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-[1px] bg-emerald/40" />
+          <span className="text-[9px] tracking-[0.3em] uppercase font-bold text-ink/40">
+            Ripple Engine
+          </span>
+          <span className="text-[7px] text-ink/20 font-mono">v1.0</span>
         </div>
-      </div>
 
-      {/* Active Lens Badge */}
-      <AnimatePresence>
-        {profession && !hudVisible && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="fixed top-20 right-8 z-[60] flex items-center gap-3"
+        {/* Right side - Macro Strain + Data Config */}
+        <div className="flex items-center gap-4 pointer-events-auto">
+          {/* Macro Strain Telemetry */}
+          {macroStrain && (
+            <div className="flex items-center gap-2 font-mono text-[8px]">
+              <div className="w-1.5 h-1.5 bg-amber-500 animate-pulse" />
+              <span className="text-ink/40">STRAIN:</span>
+              <span className="text-amber-500 font-bold">{macroStrain.index.toFixed(2)}</span>
+            </div>
+          )}
+
+          {/* Data Config Button */}
+          <button
+            onClick={() => setShowDataDrawer(true)}
+            className={`
+              flex items-center gap-2 px-3 py-1.5 text-[8px] tracking-wider uppercase transition-all
+              ${hasData
+                ? 'bg-emerald/10 border border-emerald/30 text-emerald'
+                : 'bg-paper/80 border border-ink/10 text-ink/40 hover:text-ink/60'
+              }
+            `}
           >
-            <span className="text-[8px] tracking-[0.2em] uppercase text-ink/30">Lens</span>
-            <div className="px-3 py-1 bg-emerald/10 border border-emerald/20 text-emerald text-[9px] tracking-[0.15em] uppercase font-medium">
-              {profession.replace('_', ' ')}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Telemetry Stream - Bottom Left */}
-      <div className="fixed bottom-8 left-8 z-[60] w-56 pointer-events-none opacity-50">
-        <TelemetryStream />
+            <span>⚙</span>
+            <span>Data</span>
+            {hasData && <span className="w-1.5 h-1.5 bg-emerald rounded-full" />}
+          </button>
+        </div>
       </div>
 
-      {/* Footer */}
-      <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end gap-2 pointer-events-none">
-        <div className="text-[9px] tracking-micro uppercase font-bold text-ink/30">
-          {mode === 'grounded' ? 'Grounded Analysis' : 'Predictive Mode'}
-        </div>
-        <div className="text-[9px] tracking-micro uppercase font-bold text-ink/20">
-          Causal Pipeline v1.0
-        </div>
-        <div className="w-24 h-[1px] bg-ink/10 mt-2" />
-      </div>
-
-      {/* Error Toast */}
+      {/* 3. LEFT PANEL - Results (only after simulation) */}
       <AnimatePresence>
-        {error && (
+        {hasResults && !isCalculating && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-red-500/10 border border-red-500/20 px-6 py-3 backdrop-blur-sm"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-red-600">
-                {error}
-              </span>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-500/60 hover:text-red-500 text-xs ml-2"
-              >
-                x
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Main HUD */}
-      <AnimatePresence>
-        {hudVisible && (
-          <SearchHUD
-            onSimulate={triggerSimulation}
-            profession={profession}
-            onProfessionChange={setProfession}
-            frictionContext={frictionContext}
-            onFrictionContextChange={setFrictionContext}
-            isProcessing={isCalculating}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Loading State */}
-      {isCalculating && !hudVisible && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-paper/40 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-6">
-            <div className="relative">
-              <div className="w-24 h-24 border border-emerald/20" />
-              <div className="absolute inset-0 w-24 h-24 border-2 border-transparent border-t-emerald animate-spin" />
-              <div className="absolute inset-3 w-18 h-18 border border-emerald/10" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-mono text-emerald/60">CALC</span>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-[11px] tracking-[0.25em] uppercase font-bold text-emerald mb-2">
-                Computing Causal Pipeline
-              </div>
-              <div className="text-[9px] tracking-[0.15em] uppercase text-ink/40">
-                Signal → Field → Flow → Ripple
-              </div>
-              <div className="mt-3 text-[8px] tracking-wider uppercase text-ink/30">
-                {profession?.replace('_', ' ')} Lens Active
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CAUSAL PIPELINE Results Panel */}
-      <AnimatePresence>
-        {hasResults && !hudVisible && !isCalculating && (
-          <motion.div
-            initial={{ x: -480, opacity: 0 }}
+            initial={{ x: -400, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -480, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 120 }}
-            className="fixed inset-y-0 left-0 z-50 flex h-screen w-[480px] pointer-events-none"
+            exit={{ x: -400, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25 }}
+            className="absolute top-20 left-4 w-[360px] max-h-[calc(100vh-180px)] overflow-y-auto pointer-events-auto"
           >
-            <div className="w-full h-full pt-20 pb-8 px-8 flex flex-col bg-paper/90 backdrop-blur-2xl border-r border-ink/10 pointer-events-auto relative shadow-2xl overflow-hidden">
-
-              {/* Watermark */}
-              <div className="absolute top-16 right-4 opacity-[0.02]">
-                <div className="text-[80px] font-black tracking-tighter leading-none">
-                  FLOW
-                </div>
-              </div>
-
-              {/* Mode Badge */}
-              {mode === 'grounded' && (
-                <div className="absolute top-20 right-6 px-2 py-1 bg-emerald/10 border border-emerald/20">
-                  <span className="text-[7px] tracking-[0.2em] uppercase text-emerald font-bold">Grounded</span>
-                </div>
-              )}
-
+            <div className="bg-paper/95 backdrop-blur-xl border border-ink/10 shadow-2xl p-5">
               {/* Header */}
-              <div className="flex flex-col gap-1 mb-4">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-emerald animate-pulse" />
-                  <h1 className="font-black text-sm tracking-[0.25em] uppercase text-ink">
+                  <span className="text-[9px] tracking-[0.2em] uppercase font-bold text-ink/60">
                     Causal Pipeline
-                  </h1>
+                  </span>
                 </div>
-                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] ml-5">
-                  Signal → Field → Flow → Ripple
-                </p>
+                <button
+                  onClick={resetEngine}
+                  className="text-[8px] text-ink/30 hover:text-ink/60 uppercase tracking-wider"
+                >
+                  Clear
+                </button>
               </div>
 
-              {/* Signal Echo - Layer 01 */}
-              <div className="mb-4 p-3 bg-ink/[0.02] border-l-2 border-ink/20">
-                <div className="text-[7px] tracking-[0.15em] uppercase text-ink/30 mb-1">
-                  Layer 01 // Signal
-                </div>
-                <p className="text-[11px] text-ink/70 italic leading-relaxed">&ldquo;{currentSignal}&rdquo;</p>
+              {/* Signal */}
+              <div className="mb-4 p-2 bg-ink/[0.02] border-l-2 border-ink/10">
+                <div className="text-[7px] text-ink/30 uppercase tracking-wider mb-1">Signal</div>
+                <div className="text-[10px] text-ink/70 italic">"{currentSignal}"</div>
               </div>
 
-              {/* Reset */}
-              <button
-                className="group flex items-center gap-3 text-[9px] tracking-[0.15em] uppercase text-ink/40 hover:text-emerald transition-colors font-bold mb-4"
-                onClick={resetEngine}
-              >
-                <span className="w-4 h-[1px] bg-ink/20 group-hover:bg-emerald group-hover:w-6 transition-all" />
-                New Simulation
-              </button>
-
-              {/* SOVEREIGN DECISION - The Bold Box */}
+              {/* SOVEREIGN DECISION */}
               {sovereignDecision && (
                 <div className="mb-4">
                   <SovereignDecision decision={sovereignDecision} profession={profession || ''} />
                 </div>
               )}
 
-              {/* Scrollable Pipeline Content */}
-              <div className="flex-1 space-y-4 overflow-y-auto pr-2">
-
-                {/* Layer 02 - Field State */}
-                {fieldState && (
-                  <div className="p-3 bg-ink/[0.02] border-l-2 border-amber-500/30">
-                    <div className="text-[7px] tracking-[0.15em] uppercase text-amber-500/60 mb-2">
-                      Layer 02 // Field State
-                    </div>
-                    <div className="flex items-center gap-4 mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[8px] text-ink/40">Friction:</span>
-                        <span className="font-mono text-[10px] font-bold text-amber-500">
-                          {fieldState.friction_index.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[8px] text-ink/40">Density:</span>
-                        <span className={`text-[9px] uppercase font-bold ${
-                          fieldState.density_pressure === 'critical' ? 'text-red-400' : 'text-ink/60'
-                        }`}>
-                          {fieldState.density_pressure}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-ink/60 leading-relaxed">{fieldState.summary}</p>
+              {/* Field State */}
+              {fieldState && (
+                <div className="mb-3 p-2 bg-ink/[0.02] border-l-2 border-amber-500/30">
+                  <div className="text-[7px] text-amber-500/60 uppercase tracking-wider mb-1">Field State</div>
+                  <div className="flex gap-3 text-[9px]">
+                    <span className="text-ink/40">Friction: <span className="text-amber-500 font-bold">{fieldState.friction_index.toFixed(2)}</span></span>
+                    <span className="text-ink/40">Density: <span className="font-bold">{fieldState.density_pressure}</span></span>
                   </div>
-                )}
-
-                {/* Layer 03 - Flow Dynamics */}
-                {flowDynamics && (
-                  <FlowDynamics flow={flowDynamics} />
-                )}
-
-                {/* Layer 04 - Causal Chain */}
-                {causalChain.length > 0 && (
-                  <div className="pt-2">
-                    <CausalAncestry chain={causalChain} profession={profession || ''} />
-                  </div>
-                )}
-
-                {/* Optimal Position */}
-                {optimalPosition && (
-                  <div className="p-3 bg-emerald/5 border border-emerald/20 mt-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 bg-emerald animate-pulse" />
-                      <span className="text-[8px] tracking-[0.15em] uppercase text-emerald font-bold">
-                        Optimal Coordinates
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-ink/70 mb-2">{optimalPosition.reason}</div>
-                    <div className="font-mono text-[9px] text-emerald/70 bg-emerald/10 px-2 py-1 inline-block">
-                      {optimalPosition.lat.toFixed(4)}, {optimalPosition.lng.toFixed(4)}
-                    </div>
-                  </div>
-                )}
-
-                {/* Sources */}
-                {sources.length > 0 && (
-                  <div className="pt-4 border-t border-ink/5">
-                    <div className="text-[7px] tracking-[0.15em] uppercase text-ink/20 mb-2">Data Sources</div>
-                    <div className="flex flex-wrap gap-1">
-                      {sources.map((src, i) => (
-                        <span key={i} className="text-[7px] px-1.5 py-0.5 bg-ink/[0.02] border border-ink/5 text-ink/30">
-                          {src}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="mt-auto pt-4 border-t border-ink/5 flex items-center justify-between">
-                <div className="text-[8px] uppercase tracking-widest text-ink/20 font-bold">
-                  {ripples.length} Ripple Vectors
                 </div>
+              )}
+
+              {/* Flow Dynamics */}
+              {flowDynamics && (
+                <div className="mb-3">
+                  <FlowDynamics flow={flowDynamics} />
+                </div>
+              )}
+
+              {/* Causal Chain */}
+              {causalChain.length > 0 && (
+                <div className="mb-3">
+                  <CausalAncestry chain={causalChain} profession={profession || ''} />
+                </div>
+              )}
+
+              {/* Optimal Position */}
+              {optimalPosition && (
+                <div className="p-2 bg-emerald/5 border border-emerald/20">
+                  <div className="text-[7px] text-emerald uppercase tracking-wider mb-1">Optimal Position</div>
+                  <div className="text-[9px] text-ink/70">{optimalPosition.reason}</div>
+                  <div className="font-mono text-[8px] text-emerald/70 mt-1">
+                    {optimalPosition.lat.toFixed(4)}, {optimalPosition.lng.toFixed(4)}
+                  </div>
+                </div>
+              )}
+
+              {/* Mode Badge */}
+              <div className="mt-4 pt-3 border-t border-ink/5 flex items-center justify-between">
+                <span className="text-[7px] text-ink/20 uppercase tracking-wider">
+                  {mode === 'grounded' ? 'Grounded Analysis' : 'Predictive Mode'}
+                </span>
                 <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className={`w-1.5 h-1.5 ${i <= Math.min(ripples.length, 5) ? 'bg-emerald' : 'bg-ink/10'}`} />
+                  {ripples.map((_, i) => (
+                    <div key={i} className="w-1 h-1 bg-emerald" />
                   ))}
                 </div>
               </div>
@@ -406,6 +265,59 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 4. LOADING STATE */}
+      <AnimatePresence>
+        {isCalculating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex items-center justify-center bg-paper/30 backdrop-blur-sm z-[50]"
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 border border-emerald/30 mb-4 mx-auto relative">
+                <div className="absolute inset-0 border-2 border-transparent border-t-emerald animate-spin" />
+              </div>
+              <div className="text-[10px] tracking-[0.2em] uppercase text-emerald font-bold">
+                Computing Pipeline
+              </div>
+              <div className="text-[8px] tracking-wider uppercase text-ink/30 mt-1">
+                Signal → Field → Flow → Ripple
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 5. BOTTOM COMMAND BAR */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[40]">
+        <CommandBar
+          profession={profession}
+          onProfessionChange={setProfession}
+          onSimulate={triggerSimulation}
+          isProcessing={isCalculating}
+          hasData={hasData}
+        />
+      </div>
+
+      {/* 6. BOTTOM TELEMETRY */}
+      <div className="absolute bottom-4 left-4 flex gap-4 font-mono text-[7px] text-ink/30 uppercase tracking-wider">
+        <div className="flex items-center gap-1">
+          <div className="w-1 h-1 bg-emerald animate-pulse rounded-full" />
+          <span>Kernel: Online</span>
+        </div>
+        <span>Pipeline: {hasResults ? 'Active' : 'Standby'}</span>
+        <span>IRA: Synchronized</span>
+      </div>
+
+      {/* 7. DATA DRAWER */}
+      <DataDrawer
+        isOpen={showDataDrawer}
+        onClose={() => setShowDataDrawer(false)}
+        context={frictionContext}
+        onContextChange={setFrictionContext}
+      />
     </main>
   );
 }
