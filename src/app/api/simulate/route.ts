@@ -54,45 +54,55 @@ Use this REAL data to ground your analysis. Reference specific events, times, an
 ` : '';
 
       const systemInstruction = `
-You are the RIPPLE CAUSAL KERNEL - an urban intelligence system for Paris.
+You are the RIPPLE CAUSAL KERNEL - a Sovereign Decision Engine for Paris urban dynamics.
 Today is March 14, 2026.
 
 ${PROFESSION_CONTEXT[profession]}
 
 ${frictionData}
 
-Apply the IRA Framework (Intent-Action-Ramification) to analyze the urban signal for a ${profession.replace('_', ' ')}.
+You model the city as a DYNAMIC FIELD OF FRICTION. Apply the CAUSAL PIPELINE:
+Signal → Field State → Flow Dynamics → Ripple Effect
 
-${frictionContext ? 'IMPORTANT: Your analysis MUST reference the real friction data provided above. Be specific about transit closures, events, and weather conditions mentioned.' : ''}
+${frictionContext ? 'CRITICAL: Ground ALL analysis in the real friction data provided. Reference specific events, times, transit states, and locations.' : ''}
 
 RULES:
 1. Generate 4-6 RippleNodes with SPECIFIC Paris locations
-2. Each ripple = WHERE to go, avoid, or wait
-3. Coordinates within Paris (lat: 48.82-48.90, lng: 2.25-2.42)
-4. Intensity 0.0-1.0 = impact strength on this profession
-5. Impact: STAY (opportunity), MOVE (relocate), WAIT (timing)
-6. "why" must be actionable advice
+2. Coordinates within Paris (lat: 48.82-48.90, lng: 2.25-2.42)
+3. Intensity 0.0-1.0 = impact strength
+4. The SOVEREIGN_DECISION must be a SINGLE bold command - no hedging
 
 JSON Response:
 {
-  "signal": "<signal>",
-  "ira_trace": {
-    "intent": "<what this means for ${profession.replace('_', ' ')}>",
-    "action": "<specific action to take NOW>",
-    "ramification": "<72-hour downstream effect>"
+  "signal": "<the raw disturbance>",
+  "field_state": {
+    "friction_index": <0.0-1.0>,
+    "density_pressure": "<low|medium|high|critical>",
+    "summary": "<2-line current field state>"
+  },
+  "flow_dynamics": {
+    "primary_flow": "<main agent movement pattern, e.g. 'Metro entry spikes at Saint-Denis'>",
+    "secondary_flow": "<counter-flow or spillover>",
+    "choke_points": ["<location 1>", "<location 2>"]
   },
   "causal_chain": [
     {
       "node": "<EVENT_NAME>",
       "type": "<trigger|amplifier|outcome>",
-      "value": "<quantified impact, e.g. '+80K people', '-30% mobility'>",
-      "leads_to": "<next node in chain or null>"
+      "value": "<quantified: '+80K egress', '-30% mobility'>",
+      "leads_to": "<next node or null>"
     }
   ],
+  "sovereign_decision": {
+    "action": "<IMPERATIVE VERB: ABANDON|STAGE|RELOCATE|HOLD|ACQUIRE>",
+    "target": "<specific location or zone>",
+    "logic": "<one-line causal reasoning>",
+    "confidence": <0.0-1.0>
+  },
   "delta": {
-    "status_quo": "<baseline state for ${profession.replace('_', ' ')}>",
-    "post_signal": "<projected new state>",
-    "change_percent": <number -100 to +100>,
+    "status_quo": "<baseline for ${profession.replace('_', ' ')}>",
+    "post_signal": "<projected state>",
+    "change_percent": <-100 to +100>,
     "risk_level": <0.0-1.0>
   },
   "ripples": [
@@ -101,18 +111,22 @@ JSON Response:
       "lat": <number>,
       "lng": <number>,
       "profession": "${profession}",
-      "label": "<SURGE|DEAD_ZONE|HOTSPOT|AVOID|OPPORTUNITY|FRICTION>",
+      "label": "<SURGE|DEAD_ZONE|HOTSPOT|AVOID|OPPORTUNITY>",
       "intensity": <0.0-1.0>,
       "impact": "<STAY|MOVE|WAIT>",
-      "why": "<specific actionable advice>"
+      "why": "<actionable advice>"
     }
   ],
   "optimal_position": {
     "lat": <number>,
     "lng": <number>,
-    "reason": "<why this is the best spot for ${profession.replace('_', ' ')}>"
+    "reason": "<why this exact spot>"
   },
-  "sources": ["<list friction sources used>"]
+  "macro_strain": {
+    "index": <0.0-1.0>,
+    "primary_factor": "<e.g. 'GPE Construction', 'ZFE Deadline', 'Energy Choke'>"
+  },
+  "sources": ["<friction sources used>"]
 }`;
 
       const result = await model.generateContent({
@@ -147,8 +161,8 @@ export async function GET() {
   const hasKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
   return NextResponse.json({
     status: 'KERNEL_ONLINE',
-    version: '0.5.0',
-    mode: hasKey ? 'live' : 'demo',
-    features: ['profession-lens', 'friction-context', 'ira-framework']
+    version: '1.0.0',
+    mode: hasKey ? 'sovereign' : 'demo',
+    features: ['causal-pipeline', 'flow-dynamics', 'sovereign-decision', 'multi-scale-fusion']
   });
 }
