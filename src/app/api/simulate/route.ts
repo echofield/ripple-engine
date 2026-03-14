@@ -9,6 +9,19 @@ const PROFESSION_CONTEXT: Record<string, string> = {
   TOURIST: `Tourist priorities: crowd levels, weather for outdoor activities, transport status, local events, restaurant availability.`,
 };
 
+// Truncate friction data to avoid API token limits
+function truncateFrictionData(data: string, maxChars: number = 4000): string {
+  if (data.length <= maxChars) return data;
+  // Keep first section (most important) and truncate
+  const lines = data.split('\n');
+  let result = '';
+  for (const line of lines) {
+    if (result.length + line.length > maxChars) break;
+    result += line + '\n';
+  }
+  return result + '\n[...truncated for processing]';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { signal, profession, frictionContext } = await request.json();
@@ -31,10 +44,11 @@ export async function POST(request: NextRequest) {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-      // Build context-aware prompt
-      const frictionData = frictionContext ? `
+      // Build context-aware prompt with truncation for API limits
+      const truncatedContext = frictionContext ? truncateFrictionData(frictionContext) : '';
+      const frictionData = truncatedContext ? `
 CURRENT URBAN FRICTION REPORT (REAL DATA):
-${frictionContext}
+${truncatedContext}
 
 Use this REAL data to ground your analysis. Reference specific events, times, and locations from this report.
 ` : '';
@@ -67,6 +81,20 @@ JSON Response:
     "action": "<specific action to take NOW>",
     "ramification": "<72-hour downstream effect>"
   },
+  "causal_chain": [
+    {
+      "node": "<EVENT_NAME>",
+      "type": "<trigger|amplifier|outcome>",
+      "value": "<quantified impact, e.g. '+80K people', '-30% mobility'>",
+      "leads_to": "<next node in chain or null>"
+    }
+  ],
+  "delta": {
+    "status_quo": "<baseline state for ${profession.replace('_', ' ')}>",
+    "post_signal": "<projected new state>",
+    "change_percent": <number -100 to +100>,
+    "risk_level": <0.0-1.0>
+  },
   "ripples": [
     {
       "id": "r1",
@@ -79,6 +107,11 @@ JSON Response:
       "why": "<specific actionable advice>"
     }
   ],
+  "optimal_position": {
+    "lat": <number>,
+    "lng": <number>,
+    "reason": "<why this is the best spot for ${profession.replace('_', ' ')}>"
+  },
   "sources": ["<list friction sources used>"]
 }`;
 

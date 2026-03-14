@@ -1,6 +1,6 @@
 "use client";
-import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { ProfessionSelector } from './ProfessionSelector';
 import { FrictionContext } from './FrictionContext';
 
@@ -10,20 +10,44 @@ interface SearchHUDProps {
   onProfessionChange: (profession: string) => void;
   frictionContext: string;
   onFrictionContextChange: (context: string) => void;
+  isProcessing?: boolean;
 }
+
+const PROCESSING_PHASES = [
+  'INITIALIZING_KERNEL...',
+  'PARSING_FRICTION_DATA...',
+  'LOADING_CAUSAL_GRAPH...',
+  'RUNNING_IRA_SIMULATION...',
+  'CALCULATING_RIPPLE_VECTORS...',
+  'MAPPING_OPTIMAL_POSITIONS...',
+  'FINALIZING_DELTA_ANALYSIS...',
+];
 
 export const SearchHUD = ({
   onSimulate,
   profession,
   onProfessionChange,
   frictionContext,
-  onFrictionContextChange
+  onFrictionContextChange,
+  isProcessing = false
 }: SearchHUDProps) => {
   const [value, setValue] = useState("");
   const [showFriction, setShowFriction] = useState(false);
+  const [processingPhase, setProcessingPhase] = useState(0);
 
-  const canSubmit = value.trim() && profession;
+  const canSubmit = value.trim() && profession && !isProcessing;
   const hasContext = frictionContext.trim().length > 0;
+
+  // Cycle through processing phases
+  useEffect(() => {
+    if (isProcessing) {
+      setProcessingPhase(0);
+      const interval = setInterval(() => {
+        setProcessingPhase(prev => (prev + 1) % PROCESSING_PHASES.length);
+      }, 400);
+      return () => clearInterval(interval);
+    }
+  }, [isProcessing]);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-6">
@@ -109,20 +133,62 @@ export const SearchHUD = ({
 
           {/* Action Bar */}
           <div className="flex items-center justify-between pt-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${hasContext ? 'bg-emerald' : 'bg-ink/20'}`} />
-                <span className="text-[8px] uppercase tracking-micro text-ink/30">Data</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${profession ? 'bg-emerald' : 'bg-ink/20'}`} />
-                <span className="text-[8px] uppercase tracking-micro text-ink/30">Lens</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${value.trim() ? 'bg-emerald' : 'bg-ink/20'}`} />
-                <span className="text-[8px] uppercase tracking-micro text-ink/30">Signal</span>
-              </div>
-            </div>
+            <AnimatePresence mode="wait">
+              {isProcessing ? (
+                <motion.div
+                  key="processing"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex-1"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-1.5 h-1.5 bg-emerald"
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{ duration: 0.6, delay: i * 0.2, repeat: Infinity }}
+                        />
+                      ))}
+                    </div>
+                    <span className="font-mono text-[9px] text-emerald tracking-wider">
+                      {PROCESSING_PHASES[processingPhase]}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1 bg-ink/10 overflow-hidden">
+                    <motion.div
+                      className="h-full bg-emerald/50"
+                      initial={{ width: '0%' }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 3, ease: 'linear' }}
+                    />
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="ready"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center gap-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${hasContext ? 'bg-emerald' : 'bg-ink/20'}`} />
+                    <span className="text-[8px] uppercase tracking-micro text-ink/30">Data</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${profession ? 'bg-emerald' : 'bg-ink/20'}`} />
+                    <span className="text-[8px] uppercase tracking-micro text-ink/30">Lens</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${value.trim() ? 'bg-emerald' : 'bg-ink/20'}`} />
+                    <span className="text-[8px] uppercase tracking-micro text-ink/30">Signal</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {canSubmit && (
               <motion.button

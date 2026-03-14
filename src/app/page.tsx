@@ -3,7 +3,30 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapEngine } from '@/components/MapEngine';
 import { SearchHUD } from '@/components/SearchHUD';
-import type { IRATrace, RippleNode, SimulationResponse } from '@/types';
+import { TelemetryStream } from '@/components/TelemetryStream';
+import { CausalAncestry } from '@/components/CausalAncestry';
+import { DifferenceEngine } from '@/components/DifferenceEngine';
+import type { IRATrace, RippleNode } from '@/types';
+
+interface CausalNode {
+  node: string;
+  type: 'trigger' | 'amplifier' | 'outcome';
+  value: string;
+  leads_to: string | null;
+}
+
+interface DeltaData {
+  status_quo: string;
+  post_signal: string;
+  change_percent: number;
+  risk_level: number;
+}
+
+interface OptimalPosition {
+  lat: number;
+  lng: number;
+  reason: string;
+}
 
 export default function Home() {
   const [profession, setProfession] = useState<string | null>(null);
@@ -16,6 +39,9 @@ export default function Home() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentSignal, setCurrentSignal] = useState<string>('');
+  const [causalChain, setCausalChain] = useState<CausalNode[]>([]);
+  const [delta, setDelta] = useState<DeltaData | null>(null);
+  const [optimalPosition, setOptimalPosition] = useState<OptimalPosition | null>(null);
 
   const triggerSimulation = async (signal: string) => {
     if (!signal.trim() || !profession) return;
@@ -48,6 +74,9 @@ export default function Home() {
         setRipples(data.ripples || []);
         setSources(data.sources || []);
         setMode(data._mode || 'predictive');
+        setCausalChain(data.causal_chain || []);
+        setDelta(data.delta || null);
+        setOptimalPosition(data.optimal_position || null);
         setIsCalculating(false);
       }, 1200);
 
@@ -66,6 +95,9 @@ export default function Home() {
     setHudVisible(true);
     setError(null);
     setCurrentSignal('');
+    setCausalChain([]);
+    setDelta(null);
+    setOptimalPosition(null);
   };
 
   return (
@@ -102,13 +134,18 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+      {/* Telemetry Stream - Bottom Left */}
+      <div className="fixed bottom-8 left-8 z-[60] w-56 pointer-events-none opacity-60">
+        <TelemetryStream />
+      </div>
+
       {/* Footer */}
       <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end gap-2 pointer-events-none">
         <div className="text-[9px] tracking-micro uppercase font-bold text-ink/30">
           {mode === 'grounded' ? 'Mode: Grounded Data' : 'Mode: Predictive'}
         </div>
         <div className="text-[9px] tracking-micro uppercase font-bold text-ink/30">
-          Engine: Gemini-IRA
+          Engine: Gemini-IRA v0.5
         </div>
         <div className="w-24 h-[1px] bg-ink/10 mt-2" />
       </div>
@@ -140,13 +177,14 @@ export default function Home() {
 
       {/* Main HUD */}
       <AnimatePresence>
-        {hudVisible && !isCalculating && (
+        {hudVisible && (
           <SearchHUD
             onSimulate={triggerSimulation}
             profession={profession}
             onProfessionChange={setProfession}
             frictionContext={frictionContext}
             onFrictionContextChange={setFrictionContext}
+            isProcessing={isCalculating}
           />
         )}
       </AnimatePresence>
@@ -226,33 +264,73 @@ export default function Home() {
 
               {/* IRA Trace */}
               <div className="flex-1 space-y-6 overflow-y-auto pr-2">
-                <section>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="w-5 h-5 flex items-center justify-center border border-ink/10 text-[8px] font-black text-ink/30">I</span>
-                    <h2 className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">Intent</h2>
-                  </div>
-                  <div className="ml-8 p-3 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
-                    {trace.intent}
-                  </div>
-                </section>
+                {/* Causal Ancestry - The "Why" Chain */}
+                {causalChain.length > 0 && (
+                  <section className="pb-4 border-b border-ink/10">
+                    <CausalAncestry chain={causalChain} profession={profession || ''} />
+                  </section>
+                )}
 
-                <section>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="w-5 h-5 flex items-center justify-center border border-ink/10 text-[8px] font-black text-ink/30">A</span>
-                    <h2 className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">Action</h2>
-                  </div>
-                  <div className="ml-8 p-3 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
-                    {trace.action}
-                  </div>
-                </section>
+                {/* Difference Engine - Delta Display */}
+                {delta && (
+                  <section className="pb-4 border-b border-ink/10">
+                    <DifferenceEngine delta={delta} profession={profession || ''} />
+                  </section>
+                )}
 
+                {/* Optimal Position */}
+                {optimalPosition && (
+                  <section className="p-3 bg-emerald/5 border border-emerald/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-emerald animate-pulse rounded-full" />
+                      <span className="text-[8px] tracking-[0.15em] uppercase text-emerald font-bold">
+                        Optimal Position
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-ink/70 mb-1">{optimalPosition.reason}</div>
+                    <div className="font-mono text-[8px] text-emerald/60">
+                      LAT: {optimalPosition.lat.toFixed(4)} | LNG: {optimalPosition.lng.toFixed(4)}
+                    </div>
+                  </section>
+                )}
+
+                {/* IRA Framework Analysis */}
                 <section>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="w-5 h-5 flex items-center justify-center border border-emerald/20 bg-emerald/5 text-[8px] font-black text-emerald">R</span>
-                    <h2 className="text-[10px] uppercase tracking-[0.2em] text-emerald font-bold">Ramification</h2>
+                  <div className="flex items-center gap-2 mb-3 text-[8px] tracking-[0.15em] uppercase text-ink/30">
+                    <span>IRA Framework</span>
+                    <div className="flex-1 h-[1px] bg-ink/10" />
                   </div>
-                  <div className="ml-8 p-3 bg-emerald/[0.03] border-l-2 border-emerald/30 text-xs leading-relaxed text-emerald/90 font-medium">
-                    {trace.ramification}
+
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="w-5 h-5 flex items-center justify-center border border-ink/10 text-[8px] font-black text-ink/30">I</span>
+                        <h2 className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">Intent</h2>
+                      </div>
+                      <div className="ml-8 p-3 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
+                        {trace.intent}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="w-5 h-5 flex items-center justify-center border border-ink/10 text-[8px] font-black text-ink/30">A</span>
+                        <h2 className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">Action</h2>
+                      </div>
+                      <div className="ml-8 p-3 bg-ink/[0.02] border-l-2 border-ink/10 text-xs leading-relaxed text-ink/70">
+                        {trace.action}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="w-5 h-5 flex items-center justify-center border border-emerald/20 bg-emerald/5 text-[8px] font-black text-emerald">R</span>
+                        <h2 className="text-[10px] uppercase tracking-[0.2em] text-emerald font-bold">Ramification</h2>
+                      </div>
+                      <div className="ml-8 p-3 bg-emerald/[0.03] border-l-2 border-emerald/30 text-xs leading-relaxed text-emerald/90 font-medium">
+                        {trace.ramification}
+                      </div>
+                    </div>
                   </div>
                 </section>
 
