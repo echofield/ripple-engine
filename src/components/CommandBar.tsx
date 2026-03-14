@@ -40,10 +40,38 @@ const SIGNAL_INJECTIONS = [
   },
 ];
 
-const MITIGATIONS = [
-  { id: 'bus_shuttles', label: 'Extra Bus Shuttles', icon: '+' },
-  { id: 'load_shedding', label: 'Demand Response', icon: '~' },
-  { id: 'crowd_diversion', label: 'Crowd Diversion', icon: '>' },
+const MITIGATIONS_BY_PROFESSION: Record<string, { id: string; label: string; icon: string }[]> = {
+  FLEET_OPS: [
+    { id: 'surge_cap', label: 'Surge Price Cap', icon: '$' },
+    { id: 'reroute_fleet', label: 'Reroute Fleet', icon: '>' },
+    { id: 'deploy_reserves', label: 'Deploy Reserves', icon: '+' },
+  ],
+  SUPPLY_CHAIN: [
+    { id: 'reroute_couriers', label: 'Reroute Couriers', icon: '>' },
+    { id: 'activate_hub', label: 'Activate Backup Hub', icon: '+' },
+    { id: 'delay_orders', label: 'Delay Non-Priority', icon: '~' },
+  ],
+  REAL_ESTATE: [
+    { id: 'dynamic_pricing', label: 'Dynamic Pricing', icon: '$' },
+    { id: 'tenant_alert', label: 'Tenant Alert', icon: '!' },
+    { id: 'insurance_claim', label: 'Pre-file Insurance', icon: '#' },
+  ],
+  GRID_CONTROL: [
+    { id: 'load_shedding', label: 'Load Shedding', icon: '~' },
+    { id: 'backup_gen', label: 'Activate Backup Gen', icon: '+' },
+    { id: 'demand_response', label: 'Demand Response', icon: '>' },
+  ],
+  GOV_POLICY: [
+    { id: 'crowd_diversion', label: 'Crowd Diversion', icon: '>' },
+    { id: 'deploy_units', label: 'Deploy Units', icon: '+' },
+    { id: 'evac_corridor', label: 'Open Evac Corridor', icon: '!' },
+  ],
+};
+
+const DEFAULT_MITIGATIONS = [
+  { id: 'generic_response', label: 'Emergency Response', icon: '+' },
+  { id: 'generic_reroute', label: 'Reroute Assets', icon: '>' },
+  { id: 'generic_alert', label: 'Issue Alert', icon: '!' },
 ];
 
 export interface SignalPayload {
@@ -71,6 +99,10 @@ export const CommandBar = ({
 }: CommandBarProps) => {
   const [activeMitigation, setActiveMitigation] = useState<string | null>(null);
 
+  const mitigations = profession
+    ? (MITIGATIONS_BY_PROFESSION[profession] || DEFAULT_MITIGATIONS)
+    : DEFAULT_MITIGATIONS;
+
   const handleInject = (injection: typeof SIGNAL_INJECTIONS[0]) => {
     if (profession && !isProcessing) {
       const payload: SignalPayload = {
@@ -88,6 +120,12 @@ export const CommandBar = ({
     setActiveMitigation(prev => prev === id ? null : id);
   };
 
+  // Reset mitigation when profession changes
+  const handleProfessionChange = (p: string) => {
+    setActiveMitigation(null);
+    onProfessionChange(p);
+  };
+
   return (
     <div className="w-full max-w-3xl">
       {/* Operator Lens Selector */}
@@ -95,7 +133,7 @@ export const CommandBar = ({
         {PROFESSIONS.map((p) => (
           <button
             key={p.id}
-            onClick={() => onProfessionChange(p.id)}
+            onClick={() => handleProfessionChange(p.id)}
             className={`
               px-3 py-2 text-[8px] tracking-[0.1em] uppercase transition-all
               ${profession === p.id
@@ -195,7 +233,7 @@ export const CommandBar = ({
           )}
         </div>
         <div className="flex gap-2">
-          {MITIGATIONS.map((mit) => (
+          {mitigations.map((mit) => (
             <button
               key={mit.id}
               onClick={() => toggleMitigation(mit.id)}

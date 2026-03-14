@@ -172,9 +172,30 @@ const DEMO_RESPONSES: Record<string, any> = {
 
 // Mitigation effects - reduce severity
 const MITIGATION_EFFECTS: Record<string, { frictionReduction: number; confidenceBoost: number; label: string }> = {
-  bus_shuttles: { frictionReduction: 0.25, confidenceBoost: 0.08, label: 'Extra Bus Shuttles deployed' },
-  load_shedding: { frictionReduction: 0.30, confidenceBoost: 0.10, label: 'Demand Response protocol activated' },
-  crowd_diversion: { frictionReduction: 0.20, confidenceBoost: 0.12, label: 'Crowd Diversion corridors opened' },
+  // FLEET_OPS
+  surge_cap: { frictionReduction: 0.15, confidenceBoost: 0.05, label: 'Surge pricing capped at 1.8x' },
+  reroute_fleet: { frictionReduction: 0.25, confidenceBoost: 0.10, label: 'Fleet rerouted to secondary corridors' },
+  deploy_reserves: { frictionReduction: 0.30, confidenceBoost: 0.12, label: 'Reserve vehicles deployed' },
+  // SUPPLY_CHAIN
+  reroute_couriers: { frictionReduction: 0.20, confidenceBoost: 0.08, label: 'Couriers rerouted via backup corridors' },
+  activate_hub: { frictionReduction: 0.28, confidenceBoost: 0.10, label: 'Backup distribution hub activated' },
+  delay_orders: { frictionReduction: 0.15, confidenceBoost: 0.05, label: 'Non-priority orders delayed 45min' },
+  // REAL_ESTATE
+  dynamic_pricing: { frictionReduction: 0.10, confidenceBoost: 0.08, label: 'Dynamic lease pricing activated' },
+  tenant_alert: { frictionReduction: 0.12, confidenceBoost: 0.06, label: 'Tenant disruption alert issued' },
+  insurance_claim: { frictionReduction: 0.18, confidenceBoost: 0.15, label: 'Insurance pre-filing initiated' },
+  // GRID_CONTROL
+  load_shedding: { frictionReduction: 0.30, confidenceBoost: 0.12, label: 'Non-critical load shed initiated' },
+  backup_gen: { frictionReduction: 0.35, confidenceBoost: 0.15, label: 'Backup generators online' },
+  demand_response: { frictionReduction: 0.25, confidenceBoost: 0.10, label: 'Demand response protocol active' },
+  // GOV_POLICY
+  crowd_diversion: { frictionReduction: 0.28, confidenceBoost: 0.12, label: 'Crowd diversion corridors opened' },
+  deploy_units: { frictionReduction: 0.22, confidenceBoost: 0.10, label: 'Response units deployed to sector' },
+  evac_corridor: { frictionReduction: 0.35, confidenceBoost: 0.18, label: 'Evacuation corridor activated' },
+  // Generic fallbacks
+  generic_response: { frictionReduction: 0.20, confidenceBoost: 0.08, label: 'Emergency response activated' },
+  generic_reroute: { frictionReduction: 0.18, confidenceBoost: 0.06, label: 'Assets rerouted' },
+  generic_alert: { frictionReduction: 0.10, confidenceBoost: 0.05, label: 'Alert issued to operators' },
 };
 
 // Demo fallback when API fails
