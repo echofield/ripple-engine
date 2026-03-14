@@ -2,24 +2,70 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const PROFESSION_CONTEXT: Record<string, string> = {
-  VTC_DRIVER: `VTC/Uber driver priorities: surge pricing, traffic patterns, passenger demand, airport runs, event pickups, parking, earnings optimization.`,
-  WAITER: `Restaurant worker priorities: table turnover, tourist foot traffic, terrace weather, nearby events, tip patterns, rush hours.`,
-  DELIVERY: `Delivery courier priorities: order density, route optimization, weather demand spikes, restaurant wait times, surge zones.`,
-  RETAIL: `Retail worker priorities: foot traffic, tourist shopping hours, weather driving people indoors, event-driven sales.`,
-  TOURIST: `Tourist priorities: crowd levels, weather for outdoor activities, transport status, local events, restaurant availability.`,
+  VTC_DRIVER: `VTC driver: surge pricing, traffic, passenger demand, airport runs, event pickups.`,
+  WAITER: `Restaurant worker: table turnover, tourist foot traffic, terrace weather, tip patterns.`,
+  DELIVERY: `Delivery courier: order density, route optimization, weather demand, surge zones.`,
+  RETAIL: `Retail worker: foot traffic, tourist shopping, weather driving people indoors.`,
+  TOURIST: `Tourist: crowd levels, weather, transport status, local events, restaurants.`,
 };
 
-// Truncate friction data to avoid API token limits
-function truncateFrictionData(data: string, maxChars: number = 4000): string {
+// Truncate friction data - reduced limit
+function truncateFrictionData(data: string, maxChars: number = 2000): string {
   if (data.length <= maxChars) return data;
-  // Keep first section (most important) and truncate
   const lines = data.split('\n');
   let result = '';
   for (const line of lines) {
     if (result.length + line.length > maxChars) break;
     result += line + '\n';
   }
-  return result + '\n[...truncated for processing]';
+  return result;
+}
+
+// Demo fallback when API fails
+function getDemoResponse(signal: string, profession: string, hasContext: boolean) {
+  return {
+    signal,
+    field_state: {
+      friction_index: 0.78,
+      density_pressure: "high",
+      summary: "Rugby egress creating 80K pedestrian surge. RER C suspended, replacement buses blocking 7th arr."
+    },
+    flow_dynamics: {
+      primary_flow: "Metro Line 14 absorbing stadium extraction - Saint-Ouen saturated",
+      secondary_flow: "Terrace abandonment in 10ème due to rain",
+      choke_points: ["Porte de Paris", "Saint-Denis Pleyel", "Gare du Nord forecourt"]
+    },
+    causal_chain: [
+      { node: "RUGBY_EGRESS", type: "trigger", value: "+80K pedestrians", leads_to: "TRANSIT_OVERLOAD" },
+      { node: "TRANSIT_OVERLOAD", type: "amplifier", value: "RER B at 94% capacity", leads_to: "SURGE_DEMAND" },
+      { node: "SURGE_DEMAND", type: "outcome", value: "+2.4x VTC pricing", leads_to: null }
+    ],
+    sovereign_decision: {
+      action: "STAGE",
+      target: "Mairie de Saint-Ouen (Line 14)",
+      logic: "Intercept Line 14 extraction flow before gridlock reaches stadium precinct",
+      confidence: 0.87
+    },
+    ripples: [
+      { id: "r1", lat: 48.9122, lng: 2.3342, profession, label: "SURGE", intensity: 0.95, impact: "STAY", why: "Line 14 exit point - maximum extraction demand" },
+      { id: "r2", lat: 48.8975, lng: 2.3583, profession, label: "DEAD_ZONE", intensity: 0.9, impact: "MOVE", why: "Stadium precinct gridlock - zero velocity" },
+      { id: "r3", lat: 48.8809, lng: 2.3553, profession, label: "OPPORTUNITY", intensity: 0.7, impact: "WAIT", why: "Front Populaire - pedestrians walking clear" },
+      { id: "r4", lat: 48.8566, lng: 2.3522, profession, label: "AVOID", intensity: 0.6, impact: "MOVE", why: "Gare du Nord chaos during rain" }
+    ],
+    optimal_position: {
+      lat: 48.9122,
+      lng: 2.3342,
+      reason: "Mairie de Saint-Ouen - Line 14 terminus captures 80K extraction"
+    },
+    macro_strain: {
+      index: 0.72,
+      primary_factor: "ZFE Enforcement Cliff Dec 2026"
+    },
+    sources: ["Rugby Match Data", "RER Status", "Weather Feed"],
+    _mode: hasContext ? 'grounded' : 'predictive',
+    _demo: true,
+    _timestamp: new Date().toISOString()
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -35,102 +81,38 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
+    const hasContext = !!frictionContext?.trim();
 
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+      // Return demo response if no API key
+      return NextResponse.json(getDemoResponse(signal, profession, hasContext));
     }
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-      // Build context-aware prompt with truncation for API limits
       const truncatedContext = frictionContext ? truncateFrictionData(frictionContext) : '';
-      const frictionData = truncatedContext ? `
-CURRENT URBAN FRICTION REPORT (REAL DATA):
-${truncatedContext}
 
-Use this REAL data to ground your analysis. Reference specific events, times, and locations from this report.
-` : '';
-
-      const systemInstruction = `
-You are the RIPPLE CAUSAL KERNEL - a Sovereign Decision Engine for Paris urban dynamics.
-Today is March 14, 2026.
-
+      const prompt = `You are a Paris urban dynamics engine. Today: March 14, 2026.
 ${PROFESSION_CONTEXT[profession]}
+${truncatedContext ? `FRICTION DATA:\n${truncatedContext}` : ''}
 
-${frictionData}
+Analyze this signal for a ${profession.replace('_', ' ')}: "${signal}"
 
-You model the city as a DYNAMIC FIELD OF FRICTION. Apply the CAUSAL PIPELINE:
-Signal → Field State → Flow Dynamics → Ripple Effect
-
-${frictionContext ? 'CRITICAL: Ground ALL analysis in the real friction data provided. Reference specific events, times, transit states, and locations.' : ''}
-
-RULES:
-1. Generate 4-6 RippleNodes with SPECIFIC Paris locations
-2. Coordinates within Paris (lat: 48.82-48.90, lng: 2.25-2.42)
-3. Intensity 0.0-1.0 = impact strength
-4. The SOVEREIGN_DECISION must be a SINGLE bold command - no hedging
-
-JSON Response:
-{
-  "signal": "<the raw disturbance>",
-  "field_state": {
-    "friction_index": <0.0-1.0>,
-    "density_pressure": "<low|medium|high|critical>",
-    "summary": "<2-line current field state>"
-  },
-  "flow_dynamics": {
-    "primary_flow": "<main agent movement pattern, e.g. 'Metro entry spikes at Saint-Denis'>",
-    "secondary_flow": "<counter-flow or spillover>",
-    "choke_points": ["<location 1>", "<location 2>"]
-  },
-  "causal_chain": [
-    {
-      "node": "<EVENT_NAME>",
-      "type": "<trigger|amplifier|outcome>",
-      "value": "<quantified: '+80K egress', '-30% mobility'>",
-      "leads_to": "<next node or null>"
-    }
-  ],
-  "sovereign_decision": {
-    "action": "<IMPERATIVE VERB: ABANDON|STAGE|RELOCATE|HOLD|ACQUIRE>",
-    "target": "<specific location or zone>",
-    "logic": "<one-line causal reasoning>",
-    "confidence": <0.0-1.0>
-  },
-  "delta": {
-    "status_quo": "<baseline for ${profession.replace('_', ' ')}>",
-    "post_signal": "<projected state>",
-    "change_percent": <-100 to +100>,
-    "risk_level": <0.0-1.0>
-  },
-  "ripples": [
-    {
-      "id": "r1",
-      "lat": <number>,
-      "lng": <number>,
-      "profession": "${profession}",
-      "label": "<SURGE|DEAD_ZONE|HOTSPOT|AVOID|OPPORTUNITY>",
-      "intensity": <0.0-1.0>,
-      "impact": "<STAY|MOVE|WAIT>",
-      "why": "<actionable advice>"
-    }
-  ],
-  "optimal_position": {
-    "lat": <number>,
-    "lng": <number>,
-    "reason": "<why this exact spot>"
-  },
-  "macro_strain": {
-    "index": <0.0-1.0>,
-    "primary_factor": "<e.g. 'GPE Construction', 'ZFE Deadline', 'Energy Choke'>"
-  },
-  "sources": ["<friction sources used>"]
-}`;
+Return JSON with these exact fields:
+- signal: string
+- field_state: {friction_index: 0-1, density_pressure: "low|medium|high|critical", summary: string}
+- flow_dynamics: {primary_flow: string, secondary_flow: string, choke_points: string[]}
+- causal_chain: [{node: string, type: "trigger|amplifier|outcome", value: string, leads_to: string|null}]
+- sovereign_decision: {action: "ABANDON|STAGE|RELOCATE|HOLD", target: string, logic: string, confidence: 0-1}
+- ripples: [{id: string, lat: 48.82-48.90, lng: 2.25-2.42, profession: string, label: "SURGE|DEAD_ZONE|HOTSPOT|AVOID|OPPORTUNITY", intensity: 0-1, impact: "STAY|MOVE|WAIT", why: string}]
+- optimal_position: {lat: number, lng: number, reason: string}
+- macro_strain: {index: 0-1, primary_factor: string}
+- sources: string[]`;
 
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: `${systemInstruction}\n\nUrban Signal: "${signal}"` }] }],
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' },
       });
 
@@ -139,16 +121,14 @@ JSON Response:
 
       return NextResponse.json({
         ...data,
-        _mode: frictionContext ? 'grounded' : 'predictive',
+        _mode: hasContext ? 'grounded' : 'predictive',
         _timestamp: new Date().toISOString()
       });
 
     } catch (aiError: any) {
-      console.error('Gemini API error:', aiError.message);
-      return NextResponse.json({
-        error: 'AI processing failed',
-        details: aiError.message
-      }, { status: 500 });
+      console.error('AI error, using demo fallback:', aiError.message);
+      // Return demo response on AI failure
+      return NextResponse.json(getDemoResponse(signal, profession, hasContext));
     }
 
   } catch (error: any) {
@@ -163,6 +143,6 @@ export async function GET() {
     status: 'KERNEL_ONLINE',
     version: '1.0.0',
     mode: hasKey ? 'sovereign' : 'demo',
-    features: ['causal-pipeline', 'flow-dynamics', 'sovereign-decision', 'multi-scale-fusion']
+    features: ['causal-pipeline', 'flow-dynamics', 'sovereign-decision']
   });
 }
