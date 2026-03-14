@@ -53,6 +53,7 @@ export default function Home() {
   const [mode, setMode] = useState<string>('predictive');
   const [isCalculating, setIsCalculating] = useState(false);
   const [currentSignal, setCurrentSignal] = useState<string>('');
+  const [currentMitigation, setCurrentMitigation] = useState<string | null>(null);
   const [showDataDrawer, setShowDataDrawer] = useState(false);
 
   // Results
@@ -66,10 +67,11 @@ export default function Home() {
   const hasResults = sovereignDecision || causalChain.length > 0;
   const hasData = frictionContext.trim().length > 0;
 
-  const triggerSimulation = async (signal: string) => {
+  const triggerSimulation = async (signal: string, mitigation?: string) => {
     if (!signal.trim() || !profession) return;
 
     setCurrentSignal(signal);
+    setCurrentMitigation(mitigation || null);
     setIsCalculating(true);
 
     try {
@@ -79,7 +81,8 @@ export default function Home() {
         body: JSON.stringify({
           signal,
           profession,
-          frictionContext: frictionContext.trim() || undefined
+          frictionContext: frictionContext.trim() || undefined,
+          mitigation: mitigation || undefined
         }),
       });
 
@@ -106,6 +109,7 @@ export default function Home() {
   const resetEngine = () => {
     setRipples([]);
     setCurrentSignal('');
+    setCurrentMitigation(null);
     setCausalChain([]);
     setFlowDynamics(null);
     setFieldState(null);
@@ -174,51 +178,154 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 3. LEFT PANEL - Results (only after simulation) */}
+      {/* MODEL ARCHITECTURE - Right Side Legend */}
+      <div className="absolute top-20 right-4 pointer-events-none z-[25]">
+        <div className="bg-paper/90 backdrop-blur-sm border border-ink/10 p-4 w-[180px]">
+          <div className="text-[7px] tracking-[0.2em] uppercase text-ink/30 mb-3 font-bold">
+            Causal Model
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: 'Signal', desc: 'Exogenous event', color: 'bg-ink/60' },
+              { label: 'Friction', desc: 'Infrastructure stress', color: 'bg-amber-500' },
+              { label: 'Flow', desc: 'Population dynamics', color: 'bg-blue-500' },
+              { label: 'Ripple', desc: 'Economic consequence', color: 'bg-emerald' },
+            ].map((step, i) => (
+              <div key={step.label} className="flex items-center gap-2">
+                <div className={`w-2 h-2 ${step.color}`} />
+                <div>
+                  <div className="text-[9px] font-bold text-ink/70 uppercase tracking-wider">
+                    {step.label}
+                  </div>
+                  <div className="text-[7px] text-ink/40">
+                    {step.desc}
+                  </div>
+                </div>
+                {i < 3 && (
+                  <div className="text-[8px] text-ink/20 ml-auto">↓</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Ripple Legend */}
+          <div className="mt-4 pt-3 border-t border-ink/10">
+            <div className="text-[7px] tracking-[0.15em] uppercase text-ink/30 mb-2">
+              Zone Types
+            </div>
+            <div className="grid grid-cols-2 gap-1 text-[7px]">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-emerald rounded-full" />
+                <span className="text-ink/50">Opportunity</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                <span className="text-ink/50">Hotspot</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                <span className="text-ink/50">Avoid</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="text-ink/50">Buffer</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. CENTER HERO - Sovereign Decision */}
+      <AnimatePresence>
+        {sovereignDecision && !isCalculating && (
+          <motion.div
+            initial={{ y: -50, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -50, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 20 }}
+            className="absolute top-24 left-1/2 -translate-x-1/2 w-[500px] pointer-events-auto z-[30]"
+          >
+            <div className="bg-paper/98 backdrop-blur-xl border-2 border-emerald/30 shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-2 border-b border-emerald/20 bg-emerald/5">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-emerald animate-pulse" />
+                  <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-emerald">
+                    Sovereign Decision
+                  </span>
+                </div>
+                <button
+                  onClick={resetEngine}
+                  className="text-[8px] text-ink/30 hover:text-red-500 uppercase tracking-wider transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+
+              {/* Decision Content */}
+              <div className="p-5">
+                <SovereignDecision decision={sovereignDecision} profession={profession || ''} />
+
+                {/* Signal Echo */}
+                <div className="mt-4 p-2 bg-ink/[0.02] border-l-2 border-ink/10">
+                  <div className="text-[7px] text-ink/30 uppercase tracking-wider mb-1">Input Signal</div>
+                  <div className="text-[10px] text-ink/60 italic font-mono">"{currentSignal}"</div>
+                </div>
+              </div>
+
+              {/* Mode Badge */}
+              <div className="px-4 py-2 border-t border-ink/5 flex items-center justify-between bg-ink/[0.02]">
+                <div className="flex items-center gap-3">
+                  <span className="text-[7px] text-ink/30 uppercase tracking-wider">
+                    {mode === 'grounded' ? 'Grounded Analysis' : 'Predictive Mode'}
+                  </span>
+                  {currentMitigation && (
+                    <span className="text-[7px] text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                      <span>⚡</span>
+                      <span>+ {currentMitigation.replace('_', ' ')}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[7px] text-emerald uppercase tracking-wider">
+                    {profession?.replace('_', ' ')}
+                  </span>
+                  <div className="flex gap-0.5">
+                    {ripples.map((_, i) => (
+                      <div key={i} className="w-1.5 h-1.5 bg-emerald" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 4. LEFT PANEL - Supporting Data (only after simulation) */}
       <AnimatePresence>
         {hasResults && !isCalculating && (
           <motion.div
             initial={{ x: -400, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -400, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25 }}
-            className="absolute top-20 left-4 w-[360px] max-h-[calc(100vh-180px)] overflow-y-auto pointer-events-auto"
+            transition={{ type: 'spring', damping: 25, delay: 0.1 }}
+            className="absolute top-20 left-4 w-[320px] max-h-[calc(100vh-180px)] overflow-y-auto pointer-events-auto"
           >
-            <div className="bg-paper/95 backdrop-blur-xl border border-ink/10 shadow-2xl p-5">
+            <div className="bg-paper/95 backdrop-blur-xl border border-ink/10 shadow-xl p-4">
               {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald animate-pulse" />
-                  <span className="text-[9px] tracking-[0.2em] uppercase font-bold text-ink/60">
-                    Causal Pipeline
-                  </span>
-                </div>
-                <button
-                  onClick={resetEngine}
-                  className="text-[8px] text-ink/30 hover:text-ink/60 uppercase tracking-wider"
-                >
-                  Clear
-                </button>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[8px] tracking-[0.2em] uppercase text-ink/40">
+                  Causal Pipeline
+                </span>
               </div>
-
-              {/* Signal */}
-              <div className="mb-4 p-2 bg-ink/[0.02] border-l-2 border-ink/10">
-                <div className="text-[7px] text-ink/30 uppercase tracking-wider mb-1">Signal</div>
-                <div className="text-[10px] text-ink/70 italic">"{currentSignal}"</div>
-              </div>
-
-              {/* SOVEREIGN DECISION */}
-              {sovereignDecision && (
-                <div className="mb-4">
-                  <SovereignDecision decision={sovereignDecision} profession={profession || ''} />
-                </div>
-              )}
 
               {/* Field State */}
               {fieldState && (
                 <div className="mb-3 p-2 bg-ink/[0.02] border-l-2 border-amber-500/30">
                   <div className="text-[7px] text-amber-500/60 uppercase tracking-wider mb-1">Field State</div>
-                  <div className="flex gap-3 text-[9px]">
+                  <div className="text-[9px] text-ink/60 mb-2">{fieldState.summary}</div>
+                  <div className="flex gap-3 text-[8px]">
                     <span className="text-ink/40">Friction: <span className="text-amber-500 font-bold">{fieldState.friction_index.toFixed(2)}</span></span>
                     <span className="text-ink/40">Density: <span className="font-bold">{fieldState.density_pressure}</span></span>
                   </div>
@@ -249,24 +356,12 @@ export default function Home() {
                   </div>
                 </div>
               )}
-
-              {/* Mode Badge */}
-              <div className="mt-4 pt-3 border-t border-ink/5 flex items-center justify-between">
-                <span className="text-[7px] text-ink/20 uppercase tracking-wider">
-                  {mode === 'grounded' ? 'Grounded Analysis' : 'Predictive Mode'}
-                </span>
-                <div className="flex gap-1">
-                  {ripples.map((_, i) => (
-                    <div key={i} className="w-1 h-1 bg-emerald" />
-                  ))}
-                </div>
-              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 4. LOADING STATE */}
+      {/* 5. LOADING STATE */}
       <AnimatePresence>
         {isCalculating && (
           <motion.div
@@ -290,7 +385,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* 5. BOTTOM COMMAND BAR */}
+      {/* 6. BOTTOM COMMAND BAR */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[40]">
         <CommandBar
           profession={profession}
@@ -301,7 +396,7 @@ export default function Home() {
         />
       </div>
 
-      {/* 6. BOTTOM TELEMETRY */}
+      {/* 7. BOTTOM TELEMETRY */}
       <div className="absolute bottom-4 left-4 flex gap-4 font-mono text-[7px] text-ink/30 uppercase tracking-wider">
         <div className="flex items-center gap-1">
           <div className="w-1 h-1 bg-emerald animate-pulse rounded-full" />
@@ -311,7 +406,7 @@ export default function Home() {
         <span>IRA: Synchronized</span>
       </div>
 
-      {/* 7. DATA DRAWER */}
+      {/* 8. DATA DRAWER */}
       <DataDrawer
         isOpen={showDataDrawer}
         onClose={() => setShowDataDrawer(false)}
