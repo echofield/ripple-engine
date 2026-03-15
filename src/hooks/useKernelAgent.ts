@@ -105,16 +105,16 @@ export function useKernelAgent() {
   const playbackContextRef = useRef<AudioContext | null>(null);
   const playbackCursorRef = useRef(0);
   const frameTimerRef = useRef<number | null>(null);
-  const latestEventRef = useRef<KernelFeedEvent | null>(null);
 
   const [isConnected, setIsConnected] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [status, setStatus] = useState('STANDBY');
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<KernelFeedEvent[]>([]);
+  const [latestEvent, setLatestEvent] = useState<KernelFeedEvent | null>(null);
 
   const pushEvent = useCallback((event: KernelFeedEvent) => {
-    latestEventRef.current = event;
+    setLatestEvent(event);
     setEvents(prev => [event, ...prev].slice(0, 12));
   }, []);
 
@@ -246,6 +246,7 @@ export function useKernelAgent() {
     }
 
     setError(null);
+    setStatus('CONNECTING');
 
     const liveSocket = new WebSocket(toWebSocketUrl(backendUrl, '/ws/live'));
     const feedSocket = new WebSocket(toWebSocketUrl(backendUrl, '/ws/feed'));
@@ -254,24 +255,51 @@ export function useKernelAgent() {
     liveSocketRef.current = liveSocket;
     feedSocketRef.current = feedSocket;
 
-    await new Promise<void>((resolve, reject) => {
-      let opened = 0;
-      const handleOpen = () => {
-        opened += 1;
-        if (opened === 2) {
-          setIsConnected(true);
-          setStatus('CONNECTED');
-          resolve();
-        }
-      };
+    const handleClose = () => {
+      setIsConnected(false);
+      setIsStreaming(false);
+      setStatus('DISCONNECTED');
+    };
 
-      const handleError = () => reject(new Error('Failed to connect to the control plane.'));
+    // Set close handlers immediately to catch any early disconnects
+    liveSocket.onclose = handleClose;
+    feedSocket.onclose = handleClose;
 
-      liveSocket.addEventListener('open', handleOpen, { once: true });
-      feedSocket.addEventListener('open', handleOpen, { once: true });
-      liveSocket.addEventListener('error', handleError, { once: true });
-      feedSocket.addEventListener('error', handleError, { once: true });
-    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        let opened = 0;
+        let failed = false;
+
+        const handleOpen = () => {
+          if (failed) return;
+          opened += 1;
+          if (opened === 2) {
+            setIsConnected(true);
+            setStatus('CONNECTED');
+            resolve();
+          }
+        };
+
+        const handleError = (e: Event) => {
+          if (failed) return;
+          failed = true;
+          const socketType = e.target === liveSocket ? 'live' : 'feed';
+          reject(new Error(`Failed to connect to ${socketType} socket.`));
+        };
+
+        liveSocket.addEventListener('open', handleOpen, { once: true });
+        feedSocket.addEventListener('open', handleOpen, { once: true });
+        liveSocket.addEventListener('error', handleError, { once: true });
+        feedSocket.addEventListener('error', handleError, { once: true });
+      });
+    } catch (err) {
+      // Clean up sockets on connection failure
+      liveSocket.close();
+      feedSocket.close();
+      liveSocketRef.current = null;
+      feedSocketRef.current = null;
+      throw err;
+    }
 
     liveSocket.onmessage = event => {
       if (typeof event.data === 'string') {
@@ -298,15 +326,6 @@ export function useKernelAgent() {
       const parsed = JSON.parse(event.data) as KernelFeedEvent;
       pushEvent(parsed);
     };
-
-    const handleClose = () => {
-      setIsConnected(false);
-      setIsStreaming(false);
-      setStatus('DISCONNECTED');
-    };
-
-    liveSocket.onclose = handleClose;
-    feedSocket.onclose = handleClose;
   }, [backendUrl, isConnected, playAudioChunk, pushEvent]);
 
   const connectAndStream = useCallback(async () => {
@@ -349,7 +368,7 @@ export function useKernelAgent() {
     events,
     isConnected,
     isStreaming,
-    latestEvent: latestEventRef.current,
+    latestEvent,
     sendTextSignal,
     startStreaming,
     status,
