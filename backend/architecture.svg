@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
+  <rect width="1600" height="900" fill="#07141A"/>
+  <rect x="48" y="48" width="1504" height="804" rx="28" fill="#0E222A" stroke="#1C4048" stroke-width="2"/>
+  <text x="88" y="118" fill="#D7F8E3" font-family="Arial, sans-serif" font-size="34" font-weight="700">Ripple Engine Sovereign Stack</text>
+  <text x="88" y="154" fill="#89B8B2" font-family="Arial, sans-serif" font-size="18">Cloud Run control plane with Vertex AI reasoning and Firestore ledger persistence</text>
+
+  <rect x="88" y="214" width="280" height="170" rx="20" fill="#14313A" stroke="#2F6A62"/>
+  <text x="116" y="256" fill="#D7F8E3" font-family="Arial, sans-serif" font-size="26" font-weight="700">Next.js Sensor</text>
+  <text x="116" y="292" fill="#C7DFDB" font-family="Arial, sans-serif" font-size="18">Mapbox visualizer</text>
+  <text x="116" y="322" fill="#C7DFDB" font-family="Arial, sans-serif" font-size="18">Mic PCM16 @ 16kHz</text>
+  <text x="116" y="352" fill="#C7DFDB" font-family="Arial, sans-serif" font-size="18">JPEG frame capture @ 1 FPS</text>
+
+  <rect x="472" y="144" width="360" height="310" rx="24" fill="#173944" stroke="#4CC38A" stroke-width="2"/>
+  <text x="504" y="192" fill="#EDFFF4" font-family="Arial, sans-serif" font-size="28" font-weight="700">Cloud Run Control Plane</text>
+  <text x="504" y="230" fill="#CFE9DF" font-family="Arial, sans-serif" font-size="18">FastAPI</text>
+  <text x="504" y="258" fill="#CFE9DF" font-family="Arial, sans-serif" font-size="18">`/ws/live` ingress</text>
+  <text x="504" y="286" fill="#CFE9DF" font-family="Arial, sans-serif" font-size="18">`/ws/feed` fan-out</text>
+  <text x="504" y="314" fill="#CFE9DF" font-family="Arial, sans-serif" font-size="18">Event bus + session router</text>
+  <text x="504" y="342" fill="#CFE9DF" font-family="Arial, sans-serif" font-size="18">Tool execution boundary</text>
+  <text x="504" y="370" fill="#4CC38A" font-family="Arial, sans-serif" font-size="18">Sovereign orchestration layer</text>
+
+  <rect x="936" y="144" width="282" height="170" rx="20" fill="#182F47" stroke="#6CB0FF"/>
+  <text x="964" y="188" fill="#EFF7FF" font-family="Arial, sans-serif" font-size="26" font-weight="700">Vertex AI</text>
+  <text x="964" y="224" fill="#D8E8FF" font-family="Arial, sans-serif" font-size="18">Gemini 3.1 Flash</text>
+  <text x="964" y="252" fill="#D8E8FF" font-family="Arial, sans-serif" font-size="18">Live multimodal reasoning</text>
+  <text x="964" y="280" fill="#D8E8FF" font-family="Arial, sans-serif" font-size="18">ADK agent runtime</text>
+
+  <rect x="936" y="378" width="282" height="170" rx="20" fill="#213126" stroke="#8BE28F"/>
+  <text x="964" y="422" fill="#F0FFF2" font-family="Arial, sans-serif" font-size="26" font-weight="700">Firestore</text>
+  <text x="964" y="458" fill="#E0F3E1" font-family="Arial, sans-serif" font-size="18">Urban ledger</text>
+  <text x="964" y="486" fill="#E0F3E1" font-family="Arial, sans-serif" font-size="18">Truth token persistence</text>
+  <text x="964" y="514" fill="#E0F3E1" font-family="Arial, sans-serif" font-size="18">Replay + HUD hydration</text>
+
+  <rect x="472" y="578" width="360" height="170" rx="24" fill="#3A2818" stroke="#F4AF62"/>
+  <text x="504" y="622" fill="#FFF6EC" font-family="Arial, sans-serif" font-size="26" font-weight="700">Collective HUD Feed</text>
+  <text x="504" y="658" fill="#FFE5C8" font-family="Arial, sans-serif" font-size="18">TOKEN_MINTED</text>
+  <text x="504" y="686" fill="#FFE5C8" font-family="Arial, sans-serif" font-size="18">NARRATION</text>
+  <text x="504" y="714" fill="#FFE5C8" font-family="Arial, sans-serif" font-size="18">Emerald ripple synchronization</text>
+
+  <path d="M368 298H452" stroke="#4CC38A" stroke-width="6" stroke-linecap="round"/>
+  <path d="M832 228H916" stroke="#6CB0FF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M1078 314V358" stroke="#8BE28F" stroke-width="6" stroke-linecap="round"/>
+  <path d="M652 454V558" stroke="#F4AF62" stroke-width="6" stroke-linecap="round"/>
+  <path d="M1078 548L832 632" stroke="#8BE28F" stroke-width="6" stroke-linecap="round"/>
+  <path d="M368 318C422 318 430 632 472 632" stroke="#4CC38A" stroke-width="4" stroke-dasharray="12 10"/>
+
+  <text x="380" y="286" fill="#9DD6C2" font-family="Arial, sans-serif" font-size="16">wss</text>
+  <text x="846" y="214" fill="#AECBFF" font-family="Arial, sans-serif" font-size="16">agent loop</text>
+  <text x="1092" y="342" fill="#B8F1BC" font-family="Arial, sans-serif" font-size="16">token writes</text>
+  <text x="666" y="542" fill="#FFD7A5" font-family="Arial, sans-serif" font-size="16">broadcast</text>
+
+  <text x="88" y="812" fill="#6D9691" font-family="Arial, sans-serif" font-size="16">Ingress: WebSocket live packets</text>
+  <text x="400" y="812" fill="#6D9691" font-family="Arial, sans-serif" font-size="16">Reasoning: Vertex AI + ADK</text>
+  <text x="734" y="812" fill="#6D9691" font-family="Arial, sans-serif" font-size="16">State: Firestore ledger</text>
+  <text x="1028" y="812" fill="#6D9691" font-family="Arial, sans-serif" font-size="16">Interface: synchronized HUD + ripples</text>
+</svg>

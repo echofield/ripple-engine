@@ -1,12 +1,14 @@
 "use client";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapEngine } from '@/components/MapEngine';
 import { CommandBar, SignalPayload } from '@/components/CommandBar';
+import { CollectiveHud } from '@/components/CollectiveHud';
 import { DataDrawer } from '@/components/DataDrawer';
 import { SovereignDecision } from '@/components/SovereignDecision';
 import { FlowDynamics } from '@/components/FlowDynamics';
 import { CausalAncestry } from '@/components/CausalAncestry';
+import { useKernelAgent } from '@/hooks/useKernelAgent';
 import type { RippleNode } from '@/types';
 
 interface CausalNode {
@@ -56,7 +58,6 @@ export default function Home() {
   const [currentMitigation, setCurrentMitigation] = useState<string | null>(null);
   const [showDataDrawer, setShowDataDrawer] = useState(false);
 
-  // Results
   const [causalChain, setCausalChain] = useState<CausalNode[]>([]);
   const [flowDynamics, setFlowDynamics] = useState<FlowData | null>(null);
   const [fieldState, setFieldState] = useState<FieldState | null>(null);
@@ -64,13 +65,51 @@ export default function Home() {
   const [sovereignDecision, setSovereignDecision] = useState<SovereignDecisionData | null>(null);
   const [optimalPosition, setOptimalPosition] = useState<OptimalPosition | null>(null);
 
-  // IRA Framework
   const [iraIntent, setIraIntent] = useState<string | null>(null);
   const [iraAction, setIraAction] = useState<string | null>(null);
   const [iraRamification, setIraRamification] = useState<string | null>(null);
 
+  const {
+    backendUrl,
+    connect,
+    connectAndStream,
+    disconnect,
+    error: liveError,
+    events: liveEvents,
+    isConnected: isLiveConnected,
+    isStreaming,
+    latestEvent,
+    sendTextSignal,
+    status: liveStatus,
+  } = useKernelAgent();
+
   const hasResults = sovereignDecision || causalChain.length > 0;
   const hasData = frictionContext.trim().length > 0;
+
+  useEffect(() => {
+    if (!latestEvent || latestEvent.type !== 'TOKEN_MINTED') {
+      return;
+    }
+
+    const tokenId = String(latestEvent.payload.token_id || latestEvent.created_at || Date.now());
+    const professionLabel = profession || 'COLLECTIVE';
+    const nextRipple: RippleNode = {
+      id: tokenId,
+      lat: Number(latestEvent.payload.lat || 48.8566),
+      lng: Number(latestEvent.payload.lng || 2.3522),
+      profession: professionLabel,
+      label: 'SURGE',
+      intensity: Number(latestEvent.payload.intensity || 0.6),
+      impact: 'TOKEN_MINTED',
+      why: String(latestEvent.payload.tag || latestEvent.payload.signal_type || 'Collective token minted'),
+    };
+
+    setRipples(prev => {
+      const withoutDupes = prev.filter(ripple => ripple.id !== nextRipple.id);
+      return [nextRipple, ...withoutDupes].slice(0, 12);
+    });
+    setMode('grounded');
+  }, [latestEvent, profession]);
 
   const triggerSimulation = async (payload: SignalPayload) => {
     if (!payload.signal_type || !profession) return;
@@ -80,17 +119,25 @@ export default function Home() {
     setCurrentMitigation(payload.mitigation || null);
     setIsCalculating(true);
 
+    if (isLiveConnected) {
+      sendTextSignal(displaySignal, {
+        profession_lens: payload.profession_lens,
+        mitigation: payload.mitigation || null,
+        context: payload.context,
+      });
+    }
+
     try {
       const res = await fetch('/api/simulate', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           signal_type: payload.signal_type,
           location: payload.location,
           context: payload.context,
           profession_lens: payload.profession_lens,
           frictionContext: frictionContext.trim() || undefined,
-          mitigation: payload.mitigation || undefined
+          mitigation: payload.mitigation || undefined,
         }),
       });
 
@@ -105,13 +152,11 @@ export default function Home() {
         setMacroStrain(data.macro_strain || null);
         setSovereignDecision(data.sovereign_decision || null);
         setOptimalPosition(data.optimal_position || null);
-        // IRA Framework
         setIraIntent(data.intent || null);
         setIraAction(data.action || null);
         setIraRamification(data.ramification || null);
         setIsCalculating(false);
       }, 1500);
-
     } catch (err) {
       console.error('Simulation failed:', err);
       setIsCalculating(false);
@@ -135,27 +180,22 @@ export default function Home() {
 
   return (
     <main className="relative w-screen h-screen bg-paper overflow-hidden">
-      {/* DOT GRID BACKGROUND */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.03]"
         style={{
           backgroundImage: 'radial-gradient(circle, #1a1a1a 1px, transparent 1px)',
-          backgroundSize: '20px 20px'
+          backgroundSize: '20px 20px',
         }}
       />
 
-      {/* REGISTRATION MARKS - L Brackets */}
       <div className="absolute top-4 left-4 w-8 h-8 border-t-[1px] border-l-[1px] border-ink/[0.08]" />
       <div className="absolute top-4 right-4 w-8 h-8 border-t-[1px] border-r-[1px] border-ink/[0.08]" />
       <div className="absolute bottom-4 left-4 w-8 h-8 border-b-[1px] border-l-[1px] border-ink/[0.08]" />
       <div className="absolute bottom-4 right-4 w-8 h-8 border-b-[1px] border-r-[1px] border-ink/[0.08]" />
 
-      {/* 1. THE CANVAS - Map is the hero */}
       <MapEngine ripples={ripples} />
 
-      {/* 2. TOP HUD - Minimal */}
       <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-6 pointer-events-none">
-        {/* Logo */}
         <div className="flex items-center gap-3">
           <div className="w-6 h-[1px] bg-emerald/40" />
           <span className="text-[9px] tracking-[0.3em] uppercase font-bold text-ink/40">
@@ -164,9 +204,7 @@ export default function Home() {
           <span className="text-[7px] text-ink/20 font-mono">v1.0</span>
         </div>
 
-        {/* Right side - Macro Strain + Data Config */}
         <div className="flex items-center gap-4 pointer-events-auto">
-          {/* Macro Strain Telemetry */}
           {macroStrain && (
             <div className="flex items-center gap-2 font-mono text-[8px]">
               <div className="w-1.5 h-1.5 bg-amber-500 animate-pulse" />
@@ -175,7 +213,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Data Config Button */}
           <button
             onClick={() => setShowDataDrawer(true)}
             className={`
@@ -186,14 +223,13 @@ export default function Home() {
               }
             `}
           >
-            <span>⚙</span>
+            <span>cfg</span>
             <span>Data</span>
             {hasData && <span className="w-1.5 h-1.5 bg-emerald rounded-full" />}
           </button>
         </div>
       </div>
 
-      {/* MODEL ARCHITECTURE - Right Side Legend */}
       <div className="absolute top-20 right-4 pointer-events-none z-[25]">
         <div className="bg-paper/90 backdrop-blur-sm border border-ink/10 p-4 w-[180px]">
           <div className="text-[7px] tracking-[0.2em] uppercase text-ink/30 mb-3 font-bold">
@@ -212,18 +248,13 @@ export default function Home() {
                   <div className="text-[9px] font-bold text-ink/70 uppercase tracking-wider">
                     {step.label}
                   </div>
-                  <div className="text-[7px] text-ink/40">
-                    {step.desc}
-                  </div>
+                  <div className="text-[7px] text-ink/40">{step.desc}</div>
                 </div>
-                {i < 3 && (
-                  <div className="text-[8px] text-ink/20 ml-auto">↓</div>
-                )}
+                {i < 3 && <div className="text-[8px] text-ink/20 ml-auto">v</div>}
               </div>
             ))}
           </div>
 
-          {/* Ripple Legend */}
           <div className="mt-4 pt-3 border-t border-ink/10">
             <div className="text-[7px] tracking-[0.15em] uppercase text-ink/30 mb-2">
               Zone Types
@@ -250,7 +281,20 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 3. CENTER HERO - Sovereign Decision */}
+      <div className="absolute bottom-24 right-4 pointer-events-auto z-[35]">
+        <CollectiveHud
+          backendUrl={backendUrl}
+          error={liveError}
+          events={liveEvents}
+          isConnected={isLiveConnected}
+          isStreaming={isStreaming}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          onStream={connectAndStream}
+          status={liveStatus}
+        />
+      </div>
+
       <AnimatePresence>
         {sovereignDecision && !isCalculating && (
           <motion.div
@@ -261,7 +305,6 @@ export default function Home() {
             className="absolute top-24 left-1/2 -translate-x-1/2 w-[500px] pointer-events-auto z-[30]"
           >
             <div className="bg-paper/98 backdrop-blur-xl border-2 border-emerald/30 shadow-2xl">
-              {/* Header */}
               <div className="flex items-center justify-between px-4 py-2 border-b border-emerald/20 bg-emerald/5">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-emerald animate-pulse" />
@@ -277,11 +320,9 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Decision Content */}
               <div className="p-5">
                 <SovereignDecision decision={sovereignDecision} profession={profession || ''} />
 
-                {/* IRA Framework Display */}
                 {(iraIntent || iraAction || iraRamification) && (
                   <div className="mt-4 p-3 bg-ink/[0.02] border border-ink/10">
                     <div className="text-[7px] text-ink/30 uppercase tracking-[0.2em] mb-3 font-bold">
@@ -294,14 +335,14 @@ export default function Home() {
                           <div className="text-[10px] text-ink/70">{iraIntent}</div>
                         </div>
                       )}
-                      {iraIntent && iraAction && <div className="text-ink/20 text-[10px] pl-6">↓</div>}
+                      {iraIntent && iraAction && <div className="text-ink/20 text-[10px] pl-6">v</div>}
                       {iraAction && (
                         <div className="flex items-start gap-2">
                           <div className="w-16 text-[8px] uppercase tracking-wider text-amber-500 font-bold shrink-0">Action</div>
                           <div className="text-[10px] text-ink/70">{iraAction}</div>
                         </div>
                       )}
-                      {iraAction && iraRamification && <div className="text-ink/20 text-[10px] pl-6">↓</div>}
+                      {iraAction && iraRamification && <div className="text-ink/20 text-[10px] pl-6">v</div>}
                       {iraRamification && (
                         <div className="flex items-start gap-2">
                           <div className="w-16 text-[8px] uppercase tracking-wider text-emerald font-bold shrink-0">Impact</div>
@@ -312,14 +353,12 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Signal Echo */}
                 <div className="mt-4 p-2 bg-ink/[0.02] border-l-2 border-ink/10">
                   <div className="text-[7px] text-ink/30 uppercase tracking-wider mb-1">Input Signal</div>
                   <div className="text-[10px] text-ink/60 italic font-mono">"{currentSignal}"</div>
                 </div>
               </div>
 
-              {/* Mode Badge */}
               <div className="px-4 py-2 border-t border-ink/5 flex items-center justify-between bg-ink/[0.02]">
                 <div className="flex items-center gap-3">
                   <span className="text-[7px] text-ink/30 uppercase tracking-wider">
@@ -327,8 +366,8 @@ export default function Home() {
                   </span>
                   {currentMitigation && (
                     <span className="text-[7px] text-amber-500 uppercase tracking-wider flex items-center gap-1">
-                      <span>⚡</span>
-                      <span>+ {currentMitigation.replace('_', ' ')}</span>
+                      <span>+</span>
+                      <span>{currentMitigation.replace('_', ' ')}</span>
                     </span>
                   )}
                 </div>
@@ -348,7 +387,6 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* 4. LEFT PANEL - Supporting Data (only after simulation) */}
       <AnimatePresence>
         {hasResults && !isCalculating && (
           <motion.div
@@ -359,14 +397,12 @@ export default function Home() {
             className="absolute top-20 left-4 w-[320px] max-h-[calc(100vh-180px)] overflow-y-auto pointer-events-auto"
           >
             <div className="bg-paper/95 backdrop-blur-xl border border-ink/10 shadow-xl p-4">
-              {/* Header */}
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[8px] tracking-[0.2em] uppercase text-ink/40">
                   Causal Pipeline
                 </span>
               </div>
 
-              {/* Field State */}
               {fieldState && (
                 <div className="mb-3 p-2 bg-ink/[0.02] border-l-2 border-amber-500/30">
                   <div className="text-[7px] text-amber-500/60 uppercase tracking-wider mb-1">Field State</div>
@@ -378,21 +414,18 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Flow Dynamics */}
               {flowDynamics && (
                 <div className="mb-3">
                   <FlowDynamics flow={flowDynamics} />
                 </div>
               )}
 
-              {/* Causal Chain */}
               {causalChain.length > 0 && (
                 <div className="mb-3">
                   <CausalAncestry chain={causalChain} profession={profession || ''} />
                 </div>
               )}
 
-              {/* Optimal Position */}
               {optimalPosition && (
                 <div className="p-2 bg-emerald/5 border border-emerald/20">
                   <div className="text-[7px] text-emerald uppercase tracking-wider mb-1">Optimal Position</div>
@@ -407,7 +440,6 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* 5. LOADING STATE */}
       <AnimatePresence>
         {isCalculating && (
           <motion.div
@@ -424,14 +456,13 @@ export default function Home() {
                 Computing Pipeline
               </div>
               <div className="text-[8px] tracking-wider uppercase text-ink/30 mt-1">
-                Signal → Field → Flow → Ripple
+                {"Signal -> Field -> Flow -> Ripple"}
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 6. BOTTOM COMMAND BAR */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[40]">
         <CommandBar
           profession={profession}
@@ -442,17 +473,15 @@ export default function Home() {
         />
       </div>
 
-      {/* 7. BOTTOM TELEMETRY */}
       <div className="absolute bottom-4 left-4 flex gap-4 font-mono text-[7px] text-ink/30 uppercase tracking-wider">
         <div className="flex items-center gap-1">
           <div className="w-1 h-1 bg-emerald animate-pulse rounded-full" />
-          <span>Kernel: Online</span>
+          <span>Kernel: {isLiveConnected ? 'Live' : 'Online'}</span>
         </div>
         <span>Pipeline: {hasResults ? 'Active' : 'Standby'}</span>
-        <span>IRA: Synchronized</span>
+        <span>Ingress: {isStreaming ? 'Multimodal' : 'Dormant'}</span>
       </div>
 
-      {/* 8. DATA DRAWER */}
       <DataDrawer
         isOpen={showDataDrawer}
         onClose={() => setShowDataDrawer(false)}

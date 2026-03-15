@@ -43,3 +43,7 @@ next-env.d.ts
 
 # Misc
 *.log
+backend/.venv/
+tmpclaude-*
+**/__pycache__/
+
