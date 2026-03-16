@@ -4,6 +4,12 @@ import { motion } from 'framer-motion';
 import type { KernelFeedEvent } from '@/hooks/useKernelAgent';
 
 interface CollectiveHudProps {
+  activity: {
+    audioPacketsSent: number;
+    framesSent: number;
+    audioPacketsReceived: number;
+    lastEventAt: string | null;
+  };
   backendUrl: string;
   error: string | null;
   events: KernelFeedEvent[];
@@ -11,11 +17,28 @@ interface CollectiveHudProps {
   isStreaming: boolean;
   onConnect: () => void | Promise<void>;
   onDisconnect: () => void | Promise<void>;
-  onStream: () => void | Promise<void>;
+  onToggleStream: () => void | Promise<void>;
   status: string;
 }
 
+function statusTone(status: string): string {
+  if (status === 'STREAMING' || status === 'LISTENING' || status === 'MIC_ACTIVE') {
+    return 'text-emerald';
+  }
+  if (status === 'CONNECTED' || status === 'READY') {
+    return 'text-blue-500';
+  }
+  if (status === 'CONNECTING') {
+    return 'text-amber-500';
+  }
+  if (status === 'ERROR' || status === 'DISCONNECTED') {
+    return 'text-red-500';
+  }
+  return 'text-ink/55';
+}
+
 export const CollectiveHud = ({
+  activity,
   backendUrl,
   error,
   events,
@@ -23,33 +46,37 @@ export const CollectiveHud = ({
   isStreaming,
   onConnect,
   onDisconnect,
-  onStream,
+  onToggleStream,
   status,
 }: CollectiveHudProps) => {
   return (
-    <div className="bg-paper/95 backdrop-blur-xl border border-ink/10 shadow-xl p-4 w-[320px]">
+    <div className="bg-paper/95 backdrop-blur-xl border border-ink/10 shadow-xl p-4 w-[340px]">
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className="text-[8px] tracking-[0.18em] uppercase text-ink/35">Collective HUD</div>
           <div className="text-[11px] font-semibold text-ink/70 mt-1">Kernel Control Plane</div>
         </div>
-        <div className="text-[8px] font-mono text-emerald uppercase">{status}</div>
+        <div className={`text-[8px] font-mono uppercase ${statusTone(status)}`}>{status}</div>
       </div>
 
-      <div className="flex gap-2 mb-3">
+      <div className="mb-3 grid grid-cols-3 gap-2">
         <button
           onClick={() => void onConnect()}
           disabled={isConnected}
-          className="flex-1 px-3 py-2 text-[8px] uppercase tracking-[0.15em] border border-emerald/30 text-emerald disabled:opacity-40"
+          className="px-3 py-2 text-[8px] uppercase tracking-[0.15em] border border-emerald/30 text-emerald disabled:opacity-40"
         >
           Connect
         </button>
         <button
-          onClick={() => void onStream()}
-          disabled={!isConnected || isStreaming}
-          className="flex-1 px-3 py-2 text-[8px] uppercase tracking-[0.15em] border border-amber-500/30 text-amber-600 disabled:opacity-40"
+          onClick={() => void onToggleStream()}
+          disabled={!isConnected && status === 'CONNECTING'}
+          className={`px-3 py-2 text-[8px] uppercase tracking-[0.15em] border disabled:opacity-40 ${
+            isStreaming
+              ? 'border-red-500/30 text-red-600 bg-red-500/5'
+              : 'border-amber-500/30 text-amber-600'
+          }`}
         >
-          {isStreaming ? 'Streaming' : 'Start Live'}
+          {isStreaming ? 'Stop Live' : 'Start Live'}
         </button>
         <button
           onClick={() => void onDisconnect()}
@@ -59,10 +86,44 @@ export const CollectiveHud = ({
         </button>
       </div>
 
+      <div className="mb-3 rounded-sm border border-ink/10 bg-ink/[0.02] p-2">
+        <div className="mb-2 flex items-center justify-between text-[7px] uppercase tracking-[0.15em] text-ink/35">
+          <span>Live State</span>
+          <span className={isStreaming ? 'text-emerald' : 'text-ink/40'}>
+            {isStreaming ? 'Mic Active' : isConnected ? 'Connected' : 'Idle'}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-[9px] text-ink/60">
+          <div className="border border-ink/10 bg-paper p-2">
+            <div className="text-[7px] uppercase tracking-[0.12em] text-ink/35">Audio Out</div>
+            <div className="mt-1 font-mono text-[11px] text-ink/75">{activity.audioPacketsSent}</div>
+          </div>
+          <div className="border border-ink/10 bg-paper p-2">
+            <div className="text-[7px] uppercase tracking-[0.12em] text-ink/35">Frames</div>
+            <div className="mt-1 font-mono text-[11px] text-ink/75">{activity.framesSent}</div>
+          </div>
+          <div className="border border-ink/10 bg-paper p-2">
+            <div className="text-[7px] uppercase tracking-[0.12em] text-ink/35">Audio In</div>
+            <div className="mt-1 font-mono text-[11px] text-ink/75">{activity.audioPacketsReceived}</div>
+          </div>
+        </div>
+        <div className="mt-2 text-[8px] text-ink/45">
+          {activity.lastEventAt
+            ? `Last event ${new Date(activity.lastEventAt).toLocaleTimeString()}`
+            : 'No live events yet.'}
+        </div>
+      </div>
+
       <div className="mb-3 p-2 bg-ink/[0.02] border border-ink/10">
         <div className="text-[7px] uppercase tracking-[0.15em] text-ink/35 mb-1">Endpoint</div>
         <div className="text-[9px] font-mono text-ink/55 break-all">{backendUrl}</div>
       </div>
+
+      {!isStreaming && isConnected && (
+        <div className="mb-3 border border-amber-500/20 bg-amber-500/5 p-2 text-[9px] text-amber-700">
+          Live session is open. Click <span className="font-semibold">Start Live</span> to send mic audio and map frames.
+        </div>
+      )}
 
       {error && (
         <div className="mb-3 p-2 border border-red-500/20 bg-red-500/5 text-[9px] text-red-600">
@@ -89,7 +150,7 @@ export const CollectiveHud = ({
               {event.created_at && <span className="text-[7px] font-mono text-ink/30">{new Date(event.created_at).toLocaleTimeString()}</span>}
             </div>
             <div className="text-[10px] text-ink/65 leading-relaxed">
-              {event.payload.tag || event.payload.text || JSON.stringify(event.payload)}
+              {event.payload.tag || event.payload.detail || event.payload.text || JSON.stringify(event.payload)}
             </div>
           </motion.div>
         ))}

@@ -8,6 +8,13 @@ export interface KernelFeedEvent {
   created_at?: string;
 }
 
+interface KernelActivity {
+  audioPacketsSent: number;
+  framesSent: number;
+  audioPacketsReceived: number;
+  lastEventAt: string | null;
+}
+
 const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8080';
 const FRAME_INTERVAL_MS = 1000;
 const AUDIO_BUFFER_SIZE = 4096;
@@ -112,10 +119,20 @@ export function useKernelAgent() {
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<KernelFeedEvent[]>([]);
   const [latestEvent, setLatestEvent] = useState<KernelFeedEvent | null>(null);
+  const [activity, setActivity] = useState<KernelActivity>({
+    audioPacketsSent: 0,
+    framesSent: 0,
+    audioPacketsReceived: 0,
+    lastEventAt: null,
+  });
 
   const pushEvent = useCallback((event: KernelFeedEvent) => {
     setLatestEvent(event);
     setEvents(prev => [event, ...prev].slice(0, 12));
+    setActivity(prev => ({
+      ...prev,
+      lastEventAt: event.created_at ?? new Date().toISOString(),
+    }));
   }, []);
 
   const ensurePlaybackContext = useCallback(async () => {
@@ -141,12 +158,13 @@ export function useKernelAgent() {
     const startAt = Math.max(context.currentTime, playbackCursorRef.current);
     source.start(startAt);
     playbackCursorRef.current = startAt + audioBuffer.duration;
+    setActivity(prev => ({ ...prev, audioPacketsReceived: prev.audioPacketsReceived + 1 }));
   }, [ensurePlaybackContext]);
 
   const sendRealtimePayload = useCallback((payload: Record<string, any>) => {
     const socket = liveSocketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      return;
+      return false;
     }
 
     socket.send(
@@ -156,6 +174,8 @@ export function useKernelAgent() {
         realtime_input: payload,
       })
     );
+
+    return true;
   }, []);
 
   const stopStreaming = useCallback(async () => {
@@ -175,7 +195,13 @@ export function useKernelAgent() {
     mediaStreamRef.current?.getTracks().forEach(track => track.stop());
     mediaStreamRef.current = null;
     setIsStreaming(false);
-  }, []);
+    setStatus(isConnected ? 'READY' : 'DISCONNECTED');
+    pushEvent({
+      type: 'SESSION_STATE',
+      payload: { status: 'MIC_OFF', detail: 'Live capture stopped.' },
+      created_at: new Date().toISOString(),
+    });
+  }, [isConnected, pushEvent]);
 
   const disconnect = useCallback(async () => {
     await stopStreaming();
@@ -213,11 +239,15 @@ export function useKernelAgent() {
       const input = event.inputBuffer.getChannelData(0);
       const pcm16 = downsampleToPcm16(input, audioContext.sampleRate);
       const bytes = new Uint8Array(pcm16.buffer);
-      sendRealtimePayload({
+      const sent = sendRealtimePayload({
         audio: bytesToBase64(bytes),
         mime_type: 'audio/pcm;rate=16000',
         metadata: { source: 'browser-mic' },
       });
+
+      if (sent) {
+        setActivity(prev => ({ ...prev, audioPacketsSent: prev.audioPacketsSent + 1 }));
+      }
     };
 
     source.connect(processor);
@@ -229,16 +259,25 @@ export function useKernelAgent() {
         return;
       }
 
-      sendRealtimePayload({
+      const sent = sendRealtimePayload({
         image: frame,
         image_mime_type: 'image/jpeg',
         metadata: { source: 'map-canvas' },
       });
+
+      if (sent) {
+        setActivity(prev => ({ ...prev, framesSent: prev.framesSent + 1 }));
+      }
     }, FRAME_INTERVAL_MS);
 
     setIsStreaming(true);
-    setStatus('STREAMING');
-  }, [ensurePlaybackContext, isStreaming, sendRealtimePayload]);
+    setStatus('LISTENING');
+    pushEvent({
+      type: 'SESSION_STATE',
+      payload: { status: 'MIC_ACTIVE', detail: 'Microphone and map frames are streaming.' },
+      created_at: new Date().toISOString(),
+    });
+  }, [ensurePlaybackContext, isStreaming, pushEvent, sendRealtimePayload]);
 
   const connect = useCallback(async () => {
     if (isConnected) {
@@ -261,7 +300,6 @@ export function useKernelAgent() {
       setStatus('DISCONNECTED');
     };
 
-    // Set close handlers immediately to catch any early disconnects
     liveSocket.onclose = handleClose;
     feedSocket.onclose = handleClose;
 
@@ -293,7 +331,6 @@ export function useKernelAgent() {
         feedSocket.addEventListener('error', handleError, { once: true });
       });
     } catch (err) {
-      // Clean up sockets on connection failure
       liveSocket.close();
       feedSocket.close();
       liveSocketRef.current = null;
@@ -339,6 +376,20 @@ export function useKernelAgent() {
     }
   }, [connect, startStreaming]);
 
+  const toggleStreaming = useCallback(async () => {
+    if (isStreaming) {
+      await stopStreaming();
+      return;
+    }
+
+    if (!isConnected) {
+      await connectAndStream();
+      return;
+    }
+
+    await startStreaming();
+  }, [connectAndStream, isConnected, isStreaming, startStreaming, stopStreaming]);
+
   const sendTextSignal = useCallback((text: string, metadata: Record<string, any> = {}) => {
     sendRealtimePayload({
       text,
@@ -360,6 +411,7 @@ export function useKernelAgent() {
   }, [disconnect]);
 
   return {
+    activity,
     backendUrl,
     connect,
     connectAndStream,
@@ -373,5 +425,6 @@ export function useKernelAgent() {
     startStreaming,
     status,
     stopStreaming,
+    toggleStreaming,
   };
 }

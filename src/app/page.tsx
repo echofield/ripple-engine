@@ -70,9 +70,9 @@ export default function Home() {
   const [iraRamification, setIraRamification] = useState<string | null>(null);
 
   const {
+    activity: liveActivity,
     backendUrl,
     connect,
-    connectAndStream,
     disconnect,
     error: liveError,
     events: liveEvents,
@@ -81,6 +81,7 @@ export default function Home() {
     latestEvent,
     sendTextSignal,
     status: liveStatus,
+    toggleStreaming,
   } = useKernelAgent();
 
   const hasResults = sovereignDecision || causalChain.length > 0;
@@ -283,6 +284,7 @@ export default function Home() {
 
       <div className="absolute bottom-24 right-4 pointer-events-auto z-[35]">
         <CollectiveHud
+          activity={liveActivity}
           backendUrl={backendUrl}
           error={liveError}
           events={liveEvents}
@@ -290,7 +292,7 @@ export default function Home() {
           isStreaming={isStreaming}
           onConnect={connect}
           onDisconnect={disconnect}
-          onStream={connectAndStream}
+          onToggleStream={toggleStreaming}
           status={liveStatus}
         />
       </div>
@@ -491,3 +493,4 @@ export default function Home() {
     </main>
   );
 }
+
