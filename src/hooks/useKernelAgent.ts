@@ -21,6 +21,14 @@ const AUDIO_BUFFER_SIZE = 4096;
 const TARGET_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 24000;
 
+// Debug logging
+const DEBUG = true;
+function log(tag: string, ...args: unknown[]) {
+  if (DEBUG) {
+    console.log(`[KernelAgent:${tag}]`, new Date().toISOString(), ...args);
+  }
+}
+
 function toWebSocketUrl(baseUrl: string, path: string): string {
   const url = new URL(baseUrl);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -179,6 +187,8 @@ export function useKernelAgent() {
   }, []);
 
   const stopStreaming = useCallback(async () => {
+    log('stopStreaming', 'called, isStreaming=', isStreaming, 'hasMediaStream=', !!mediaStreamRef.current);
+
     if (frameTimerRef.current) {
       window.clearInterval(frameTimerRef.current);
       frameTimerRef.current = null;
@@ -201,9 +211,11 @@ export function useKernelAgent() {
       payload: { status: 'MIC_OFF', detail: 'Live capture stopped.' },
       created_at: new Date().toISOString(),
     });
-  }, [isConnected, pushEvent]);
+    log('stopStreaming', 'completed');
+  }, [isConnected, isStreaming, pushEvent]);
 
   const disconnect = useCallback(async () => {
+    log('disconnect', 'called, isConnected=', isConnected, 'hasLiveSocket=', !!liveSocketRef.current);
     await stopStreaming();
     liveSocketRef.current?.close();
     feedSocketRef.current?.close();
@@ -211,21 +223,37 @@ export function useKernelAgent() {
     feedSocketRef.current = null;
     setIsConnected(false);
     setStatus('DISCONNECTED');
-  }, [stopStreaming]);
+    log('disconnect', 'completed');
+  }, [isConnected, stopStreaming]);
 
   const startStreaming = useCallback(async () => {
+    log('startStreaming', 'called, isStreaming=', isStreaming);
+
     if (isStreaming) {
+      log('startStreaming', 'already streaming, returning');
       return;
     }
 
     const socket = liveSocketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
+      log('startStreaming', 'socket not open, readyState=', socket?.readyState);
       throw new Error('Live socket is not connected.');
     }
 
+    log('startStreaming', 'ensuring playback context');
     await ensurePlaybackContext();
 
+    log('startStreaming', 'requesting microphone permission');
     const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    log('startStreaming', 'microphone permission granted');
+
+    // Check if socket is still open after async getUserMedia
+    if (!liveSocketRef.current || liveSocketRef.current.readyState !== WebSocket.OPEN) {
+      log('startStreaming', 'socket closed during getUserMedia, aborting');
+      mediaStream.getTracks().forEach(track => track.stop());
+      throw new Error('Live socket closed during microphone permission request.');
+    }
+
     mediaStreamRef.current = mediaStream;
 
     const audioContext = new AudioContext();
@@ -277,41 +305,65 @@ export function useKernelAgent() {
       payload: { status: 'MIC_ACTIVE', detail: 'Microphone and map frames are streaming.' },
       created_at: new Date().toISOString(),
     });
+    log('startStreaming', 'completed successfully');
   }, [ensurePlaybackContext, isStreaming, pushEvent, sendRealtimePayload]);
 
   const connect = useCallback(async () => {
+    log('connect', 'called, isConnected=', isConnected);
+
     if (isConnected) {
+      log('connect', 'already connected, returning');
       return;
     }
 
     setError(null);
     setStatus('CONNECTING');
 
-    const liveSocket = new WebSocket(toWebSocketUrl(backendUrl, '/ws/live'));
-    const feedSocket = new WebSocket(toWebSocketUrl(backendUrl, '/ws/feed'));
+    const liveWsUrl = toWebSocketUrl(backendUrl, '/ws/live');
+    const feedWsUrl = toWebSocketUrl(backendUrl, '/ws/feed');
+    log('connect', 'creating sockets', liveWsUrl, feedWsUrl);
+
+    const liveSocket = new WebSocket(liveWsUrl);
+    const feedSocket = new WebSocket(feedWsUrl);
 
     liveSocket.binaryType = 'arraybuffer';
     liveSocketRef.current = liveSocket;
     feedSocketRef.current = feedSocket;
 
-    const handleClose = () => {
-      setIsConnected(false);
-      setIsStreaming(false);
-      setStatus('DISCONNECTED');
+    liveSocket.onclose = (event) => {
+      log('liveSocket.onclose', 'code=', event.code, 'reason=', event.reason, 'wasClean=', event.wasClean);
+      // Only update state if this is still our active socket
+      if (liveSocketRef.current === liveSocket) {
+        setIsConnected(false);
+        setStatus('DISCONNECTED');
+      }
     };
 
-    liveSocket.onclose = handleClose;
-    feedSocket.onclose = handleClose;
+    feedSocket.onclose = (event) => {
+      log('feedSocket.onclose', 'code=', event.code, 'reason=', event.reason, 'wasClean=', event.wasClean);
+      // Feed socket closing doesn't necessarily mean session is over
+    };
+
+    liveSocket.onerror = (event) => {
+      log('liveSocket.onerror', event);
+    };
+
+    feedSocket.onerror = (event) => {
+      log('feedSocket.onerror', event);
+    };
 
     try {
       await new Promise<void>((resolve, reject) => {
         let opened = 0;
         let failed = false;
 
-        const handleOpen = () => {
+        const handleOpen = (e: Event) => {
           if (failed) return;
+          const socketType = e.target === liveSocket ? 'live' : 'feed';
+          log('connect', `${socketType}Socket.onopen`);
           opened += 1;
           if (opened === 2) {
+            log('connect', 'both sockets open');
             setIsConnected(true);
             setStatus('CONNECTED');
             resolve();
@@ -322,6 +374,7 @@ export function useKernelAgent() {
           if (failed) return;
           failed = true;
           const socketType = e.target === liveSocket ? 'live' : 'feed';
+          log('connect', `${socketType}Socket connection error`);
           reject(new Error(`Failed to connect to ${socketType} socket.`));
         };
 
@@ -331,6 +384,7 @@ export function useKernelAgent() {
         feedSocket.addEventListener('error', handleError, { once: true });
       });
     } catch (err) {
+      log('connect', 'connection failed', err);
       liveSocket.close();
       feedSocket.close();
       liveSocketRef.current = null;
@@ -341,6 +395,7 @@ export function useKernelAgent() {
     liveSocket.onmessage = event => {
       if (typeof event.data === 'string') {
         const parsed = JSON.parse(event.data) as KernelFeedEvent;
+        log('liveSocket.onmessage', 'text event', parsed.type);
         if (parsed.type === 'SESSION_STATE' && parsed.payload.status) {
           setStatus(String(parsed.payload.status));
         }
@@ -361,22 +416,31 @@ export function useKernelAgent() {
 
     feedSocket.onmessage = event => {
       const parsed = JSON.parse(event.data) as KernelFeedEvent;
+      log('feedSocket.onmessage', parsed.type);
       pushEvent(parsed);
     };
+
+    log('connect', 'completed successfully');
   }, [backendUrl, isConnected, playAudioChunk, pushEvent]);
 
   const connectAndStream = useCallback(async () => {
+    log('connectAndStream', 'called');
     try {
       await connect();
+      log('connectAndStream', 'connect completed, starting streaming');
       await startStreaming();
+      log('connectAndStream', 'streaming started');
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Failed to start live stream.';
+      log('connectAndStream', 'error:', message);
       setError(message);
       setStatus('ERROR');
     }
   }, [connect, startStreaming]);
 
   const toggleStreaming = useCallback(async () => {
+    log('toggleStreaming', 'called, isStreaming=', isStreaming, 'isConnected=', isConnected);
+
     if (isStreaming) {
       await stopStreaming();
       return;
@@ -400,15 +464,24 @@ export function useKernelAgent() {
     });
   }, [sendRealtimePayload]);
 
+  // Use a ref to track the latest disconnect function to avoid cleanup
+  // running when disconnect changes (which happens when isConnected changes).
+  // The bug was: useEffect cleanup runs when `disconnect` dependency changes,
+  // which happens right after connect succeeds, causing immediate teardown.
+  const disconnectRef = useRef(disconnect);
+  disconnectRef.current = disconnect;
+
   useEffect(() => {
+    log('useEffect', 'mount - setting up cleanup');
     return () => {
-      void disconnect();
+      log('useEffect', 'unmount - running cleanup');
+      void disconnectRef.current();
       if (playbackContextRef.current) {
         void playbackContextRef.current.close();
         playbackContextRef.current = null;
       }
     };
-  }, [disconnect]);
+  }, []); // Empty deps = only runs on mount/unmount
 
   return {
     activity,
