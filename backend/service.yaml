@@ -1,0 +1,44 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ripple-kernel-backend
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '20'
+        run.googleapis.com/cpu-throttling: 'false'
+    spec:
+      containerConcurrency: 40
+      timeoutSeconds: 300
+      serviceAccountName: ripple-kernel-sa@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+      - image: REGION-docker.pkg.dev/PROJECT_ID/ripple/ripple-kernel-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: '8080'
+        - name: GOOGLE_GENAI_USE_VERTEXAI
+          value: 'TRUE'
+        - name: GOOGLE_CLOUD_PROJECT
+          value: PROJECT_ID
+        - name: GOOGLE_CLOUD_LOCATION
+          value: europe-west4
+        - name: FIRESTORE_COLLECTION
+          value: urban_ledger
+        - name: VERTEX_MODEL
+          value: gemini-live-2.5-flash-native-audio
+        - name: ADK_APP_NAME
+          value: ripple-kernel
+        - name: ADK_USER_ID
+          value: collective
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+

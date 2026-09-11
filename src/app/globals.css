@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #FAF8F2;
+  --foreground: #1A1A1A;
+  --emerald: #10B981;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dot-grid {
+  background-image: radial-gradient(rgba(26, 26, 26, 0.1) 0.5px, transparent 0.5px);
+  background-size: 30px 30px;
+}
+
+.mapboxgl-map {
+  filter: grayscale(100%) brightness(1.1) contrast(0.85) sepia(20%);
+  opacity: 0.25;
+  background-color: #FAF8F2;
+  transition: opacity 2s ease-in-out;
+}
+
+.mapboxgl-ctrl-bottom-right,
+.mapboxgl-ctrl-bottom-left {
+  display: none !important;
+}
+
+@keyframes scan {
+  0% { transform: translateY(-100vh); }
+  100% { transform: translateY(100vh); }
+}
+
+.animate-scan {
+  animation: scan 8s linear infinite;
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.2);
+}

@@ -1,0 +1,7 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.0
+python-dotenv>=1.0.1
+google-cloud-firestore>=2.19.0
+google-cloud-aiplatform[agent_engines]>=1.90.0,<2.0.0
+google-adk==1.10.0
